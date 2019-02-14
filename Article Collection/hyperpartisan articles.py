@@ -10,13 +10,11 @@ import os
 
 _thisFile = os.path.dirname(os.path.abspath(__file__))
 
-#%%
 print('parse articles-training-bypublisher-20181122.xml')
-xmlfile = r'%s\articles-training-bypublisher-20181122.xml' % _thisFile
-tree = ET.parse(xmlfile)
-root = tree.getroot()
+_xmlfile = r'%s\articles-training-bypublisher-20181122.xml' % _thisFile
+_tree = ET.parse(_xmlfile)
+_root = _tree.getroot()
 
-#%%
 print('extract article content')
 #Create function to return the text between the <article> tag
 def gettext(elem):
@@ -28,26 +26,24 @@ def gettext(elem):
     return text
 
 #Create list of articles in xml file
-articles = root.getchildren()
+_articles = _root.getchildren()
 #Dictionary for storing returned text from articles
-artDict = {}
+_artDict = {}
 #Loop through and extract article info and text
 i = 1
-for a in articles:
+for a in _articles:
     i += 1
     tmp = a.attrib
     tmp['text'] = gettext(a)
-    artDict[a.attrib['id']] = tmp
+    _artDict[a.attrib['id']] = tmp
 
-#%%
 print('connect to db')
 #Write data to SQLlite DB
 import sqlite3
 dbfile = r'C:\Users\e481340\Documents\GMU MASTERS\DAEN 690\DAEN690\Article Collection\articles_zenodo.db'
-db = sqlite3.connect(dbfile)
-cursor = db.cursor()
+_db = sqlite3.connect(dbfile)
+_cursor = _db.cursor()
 
-#%%
 print('insert articles to db')
 def post_row(conn, tablename, rec):
     keys =  '[' + '],['.join(value.keys()) + ']'
@@ -55,10 +51,10 @@ def post_row(conn, tablename, rec):
     values = tuple(rec.values())
     conn.execute('INSERT INTO '+tablename+' ('+keys+') VALUES ('+question_marks+')', values)
 
-for key, value in artDict.items():
+for key, value in _artDict.items():
     print(key)
-    post_row(cursor, 'content', value)
+    post_row(_cursor, 'content', value)
 
 print('commit writes')
-db.commit()
+_db.commit()
 
