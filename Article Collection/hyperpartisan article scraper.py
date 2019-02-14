@@ -9,4 +9,4 @@ Created on Wed Feb 13 18:38:47 2019
 import requests
 from bs4 import BeautifulSoup
 
-page
+page = 12
