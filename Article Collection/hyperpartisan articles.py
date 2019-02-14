@@ -27,28 +27,19 @@ def gettext(elem):
             text = text + subelem.tail
     return text
 
-#Child 0 is the first article in the xml file
-root.getchildren()[0]
-root.getchildren()[0].tag
-root.getchildren()[0].attrib
-
-#Children of child 0 are the article content
-root.getchildren()[0].getchildren()
-#Exploring whats in the text
-root.getchildren()[0].getchildren()[0].tag
-root.getchildren()[0].getchildren()[0].attrib
-root.getchildren()[0].getchildren()[0].text
-#Sentence cuts off so next child is tag
-root.getchildren()[0].getchildren()[0].getchildren()[0].tag
-root.getchildren()[0].getchildren()[0].getchildren()[0].attrib
-root.getchildren()[0].getchildren()[0].getchildren()[0].text
-root.getchildren()[0].getchildren()[0].getchildren()[0].tail
-
-
-#Print out everything for first article
-print(ET.tostring(root.getchildren()[0], encoding='utf8').decode('utf8'))
+#Create list of articles in xml file
+articles = root.getchildren()
+#Dictionary for storing returned text from articles
+artDict = {}
+#Loop through and extract article info and text
+for a in articles:
+    print(a)
+    tmp = a.attrib
+    tmp['text'] = gettext(a)
+    artDict[a.attrib['id']] = tmp
 
 
 
 
-gettext(root.getchildren()[0])
+
+
