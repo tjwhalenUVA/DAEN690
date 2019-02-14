@@ -12,7 +12,7 @@ _thisFile = os.path.dirname(os.path.abspath(__file__))
 
 #%%
 print('parse articles-training-bypublisher-20181122.xml')
-xmlfile = r'C:\Users\e481340\Documents\GMU MASTERS\DAEN 690\Data\zenodoData\articles-training-bypublisher-20181122\articles-training-bypublisher-20181122.xml'
+xmlfile = r'%s\articles-training-bypublisher-20181122.xml' % _thisFile
 tree = ET.parse(xmlfile)
 root = tree.getroot()
 
