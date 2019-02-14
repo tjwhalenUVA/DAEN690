@@ -6,6 +6,9 @@ Created on Wed Feb 13 20:34:49 2019
 """
 print('packages')
 import xml.etree.ElementTree as ET
+import os
+
+_thisFile = os.path.dirname(os.path.abspath(__file__))
 
 #%%
 print('parse articles-training-bypublisher-20181122.xml')
