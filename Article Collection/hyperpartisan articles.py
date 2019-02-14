@@ -5,14 +5,50 @@ Created on Wed Feb 13 20:34:49 2019
 @author: timothy.whalen
 """
 
-import untangle
+import xml.etree.ElementTree as ET
 
-file = r'C:\Users\e481340\Documents\GMU MASTERS\DAEN 690\Data\zenodoData\articles-training-bypublisher-20181122\articles-training-bypublisher-20181122.xml'
+xmlfile = r'C:\Users\e481340\Documents\GMU MASTERS\DAEN 690\Data\zenodoData\articles-training-bypublisher-20181122\articles-training-bypublisher-20181122.xml'
 
-o = untangle.parse(file)
+tree = ET.parse(xmlfile)
+root = tree.getroot()
+
+#Root is the collection of all articles
+root.tag
+root.tail
+root.text
+root.attrib
+
+#Create function to return the text between the <article> tag
+def gettext(elem):
+    text = elem.text or ""
+    for subelem in elem:
+        text = text + gettext(subelem)
+        if subelem.tail:
+            text = text + subelem.tail
+    return text
+
+#Child 0 is the first article in the xml file
+root.getchildren()[0]
+root.getchildren()[0].tag
+root.getchildren()[0].attrib
+
+#Children of child 0 are the article content
+root.getchildren()[0].getchildren()
+#Exploring whats in the text
+root.getchildren()[0].getchildren()[0].tag
+root.getchildren()[0].getchildren()[0].attrib
+root.getchildren()[0].getchildren()[0].text
+#Sentence cuts off so next child is tag
+root.getchildren()[0].getchildren()[0].getchildren()[0].tag
+root.getchildren()[0].getchildren()[0].getchildren()[0].attrib
+root.getchildren()[0].getchildren()[0].getchildren()[0].text
+root.getchildren()[0].getchildren()[0].getchildren()[0].tail
 
 
-o.articles.article[0]['id']
-o.articles.article[0]['published-at']
-o.articles.article[0]['title']
-o.articles.article[0]
+#Print out everything for first article
+print(ET.tostring(root.getchildren()[0], encoding='utf8').decode('utf8'))
+
+
+
+
+gettext(root.getchildren()[0])
