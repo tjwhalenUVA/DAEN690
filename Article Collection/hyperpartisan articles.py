@@ -37,34 +37,37 @@ for a in _articles:
     tmp['text'] = gettext(a)
     _artDict[a.attrib['id']] = tmp
 
-
 print('setting up db')
 #Write data to SQLlite DB
 import sqlite3
 _dbfile = r'%s\articles_zenodo.db' % _thisFile
 
+#Function to insert data into db table
+def post_row(conn, tablename, rec):
+    keys =  '[' + '],['.join(rec.keys()) + ']'
+    question_marks = ','.join(list('?'*len(rec)))
+    values = tuple(rec.values())
+    conn.execute('INSERT INTO '+tablename+' ('+keys+') VALUES ('+question_marks+')', values)
+
 #Check if DB exists
 if os.path.isfile(_dbfile) == True:
-    print('DB exists')
+    print('db exists')
     _db = sqlite3.connect(_dbfile)
     _cursor = _db.cursor()
+    #Check db table exists
+    #if it does check contents are there
+    #if no contents then write to table
 else:
-    print('DB does not exist; Creating DB')
+    print('db does not exist; creating db')
     _db = sqlite3.connect(_dbfile)
     _cursor = _db.cursor()
+    print('creating content table')
+    _cursor.execute('CREATE TABLE content ([id] STRING PRIMARY KEY NOT NULL, [published-at] DATE, [title] STRING, [text] STRING);')
+    print('insert articles to db')
+    for key, value in _artDict.items():
+        print(key)
+        post_row(_cursor, 'content', value)
 
-
-# print('insert articles to db')
-# def post_row(conn, tablename, rec):
-#     keys =  '[' + '],['.join(value.keys()) + ']'
-#     question_marks = ','.join(list('?'*len(rec)))
-#     values = tuple(rec.values())
-#     conn.execute('INSERT INTO '+tablename+' ('+keys+') VALUES ('+question_marks+')', values)
-
-# for key, value in _artDict.items():
-#     print(key)
-#     post_row(_cursor, 'content', value)
-
-# print('commit writes')
-# _db.commit()
+print('commit writes')
+_db.commit()
 
