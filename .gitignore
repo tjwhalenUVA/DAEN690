@@ -1,0 +1,4 @@
+#Ignore all xml files
+*.xml
+#ignore sqlite databases
+*.db
