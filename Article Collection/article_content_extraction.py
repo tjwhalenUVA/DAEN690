@@ -59,5 +59,5 @@ else:
     for key, value in _artDict.items():
         print(key)
         post_row(_cursor, 'content', value)
-        print('commit writes')
-        _db.commit()
+    print('commit writes')
+    _db.commit()
