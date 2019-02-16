@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Feb 13 20:34:49 2019
-
-@author: timothy.whalen
-"""
 print('packages')
 import xml.etree.ElementTree as ET
 import os
@@ -66,4 +61,3 @@ else:
         post_row(_cursor, 'content', value)
         print('commit writes')
         _db.commit()
-
