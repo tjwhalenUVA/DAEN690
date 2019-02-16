@@ -50,13 +50,10 @@ def post_row(conn, tablename, rec):
     conn.execute('INSERT INTO '+tablename+' ('+keys+') VALUES ('+question_marks+')', values)
 
 #Check if DB exists
+#if it does just print message; if it doesn't create it and fill it up
 if os.path.isfile(_dbfile) == True:
     print('db exists')
-    _db = sqlite3.connect(_dbfile)
-    _cursor = _db.cursor()
-    #Check db table exists
-    #if it does check contents are there
-    #if no contents then write to table
+    print('please delete db to recreate from xml')
 else:
     print('db does not exist; creating db')
     _db = sqlite3.connect(_dbfile)
@@ -67,7 +64,6 @@ else:
     for key, value in _artDict.items():
         print(key)
         post_row(_cursor, 'content', value)
-
-print('commit writes')
-_db.commit()
+        print('commit writes')
+        _db.commit()
 
