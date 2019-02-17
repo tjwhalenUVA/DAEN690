@@ -2,7 +2,7 @@
 print('packages')
 import xml.etree.ElementTree as ET
 import os
-
+#example comment
 _thisFile = os.path.dirname(os.path.abspath('__file__'))
 
 print('parse articles-training-bypublisher-20181122.xml')
