@@ -68,5 +68,13 @@ lean %>%
     labs(x=NULL, y='# of Articles')
     
 
-
-
+#Table counting bias vs hyperpartisan
+lean %>%
+    mutate(bias = factor(bias,
+                         levels = c('left', 'left-center',
+                                    'least',
+                                    'right-center', 'right'))) %>%
+    group_by(hyperpartisan, bias) %>%
+    count() %>%
+    spread(bias, n) %>%
+    knitr::kable(.)
