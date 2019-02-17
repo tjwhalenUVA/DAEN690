@@ -14,7 +14,14 @@ from tensorflow import keras
 
 # Helper libraries
 import numpy as np
-import matplotlib.pyplot as plt
+
+from sys import platform as sys_pf
+if sys_pf == 'darwin':
+    import matplotlib
+    matplotlib.use('TkAgg')
+    import matplotlib.pyplot as plt
+else:
+    import matplotlib.pyplot as plt
 
 print(tf.__version__)
 
