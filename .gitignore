@@ -2,3 +2,5 @@
 *.xml
 #ignore sqlite databases
 *.db
+#ignore virtual environment (pycharm-generated)
+venv/
