@@ -6,6 +6,9 @@
 # convert the text for each article into a series of embedded word vectors (padding
 # as necessary), and feed the results into a recurrent neural net.
 #
+# Understanding of word embeddings and example code found at:
+# https://machinelearningmastery.com/use-word-embedding-layers-deep-learning-keras/
+#
 
 # Import all the packages!
 #
@@ -38,7 +41,12 @@ _cursor = _db.cursor()
 # Pull the relevant bits of data out of the database and
 # store them in a pandas dataframe.
 #
+print('Pulling article IDs, leanings, and text from database')
 _cursor.execute('SELECT ln.id, ln.bias, cn.text ' +
                 'from lean ln, content cn ' +
                 'where ln.id == cn.id')
 _rows = _cursor.fetchall()
+_df = pd.DataFrame(_rows, columns=('id', 'lean', 'text'))
+
+
+### to be continued...
