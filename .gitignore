@@ -4,3 +4,5 @@
 *.db
 #ignore virtual environment (pycharm-generated)
 venv/
+#ignore r history files
+*.Rhistory
