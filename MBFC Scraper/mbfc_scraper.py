@@ -3,6 +3,7 @@ print('packages')
 from bs4 import BeautifulSoup
 import requests
 import os
+_thisFile = os.path.dirname(os.path.abspath('__file__'))
 
 #Pages to scrape
 _pages = {}
@@ -54,4 +55,8 @@ for bias in _sources.keys():
                          axis=0)
 
 
-
+import sqlite3
+_dbfile = r'%s/mbfc.db' % _thisFile
+_db = sqlite3.connect(_dbfile)
+_mbfc_df.to_sql('bias', con=_db, if_exists='replace')
+_db.close()
