@@ -47,6 +47,34 @@ _cursor.execute('SELECT ln.id, ln.bias, cn.text ' +
                 'where ln.id == cn.id')
 _rows = _cursor.fetchall()
 _df = pd.DataFrame(_rows, columns=('id', 'lean', 'text'))
+del _rows
+
+# Convert each article's text into a series of word embeddings.
+print('Tokenizing text')
+_vocabSize = 25000
+t = keras.preprocessing.text.Tokenizer(num_words=_vocabSize)
+t.fit_on_texts(_df.text)
+
+print('Computing vocabulary size')
+_vocabularyCount = len(t.word_index) + 1   # add 1 for the null value
+
+print('Assigning indices to each word')
+_textIndices = t.texts_to_sequences(_df.text.values)
+
+print('Computing longest article')
+_longestArticle = len(max(_textIndices, key=len))
+
+print('Padding shorter articles')
+_textPadded = keras.preprocessing.sequence.pad_sequences(_textIndices, maxlen=_longestArticle,
+                                                         padding='post')
+_embeddingsDict = {}
+_gloveFile = open('../data/wordEmbeddings/glove.6B.100d.txt')
 
 
-### to be continued...
+
+from keras.preprocessing.text import one_hot
+from keras.preprocessing.sequence import pad_sequences
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.layers import Flatten
+from keras.layers.embeddings import Embedding
