@@ -62,3 +62,7 @@ lean.df %>%
           axis.ticks = element_blank()) +
     scale_color_manual(values = c('grey30', 'purple', 'grey80')) +
     labs(x='mediabiasfactcheck.com', y='Zenodo Hyperpartisan\nDataset')
+
+lean.df %>%
+    mutate(match = ifelse(mbfc == zenodo, 'yes', 'no')) %>%
+    filter(match == 'no')
