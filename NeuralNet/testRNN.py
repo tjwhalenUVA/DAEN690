@@ -50,7 +50,7 @@ _df = pd.DataFrame(_rows, columns=('id', 'lean', 'text'))
 del _rows
 
 # Convert each article's text into a series of word embeddings.
-print('Tokenizing text')
+print('Tokenizing corpus/vocabulary')
 _vocabSize = 25000
 t = keras.preprocessing.text.Tokenizer(num_words=_vocabSize)
 t.fit_on_texts(_df.text)
@@ -61,8 +61,23 @@ _vocabularyCount = len(t.word_index) + 1   # add 1 for the null value
 print('Assigning indices to each word')
 _textIndices = t.texts_to_sequences(_df.text.values)
 
-print('Computing longest article')
+print('Computing article statistics')
+_articleLength = []
+for ti in _textIndices:
+    _articleLength.append(len(ti))
+_articleLength = np.sort(np.array(_articleLength))
+_percentages = np.arange(start=0, stop=len(_articleLength)) / float(len(_articleLength))
+_fig = plt.figure()
+plt.plot(_articleLength, _percentages, 'b')
+plt.title('Percentage of Articles with Length < X')
+plt.xlabel('Article Length (Tokens)')
+plt.ylabel('Percentage of Articles in Corpus')
+_fig.savefig('article_lengths.pdf', bbox_inches='tight')
+
 _longestArticle = len(max(_textIndices, key=len))
+
+
+
 
 print('Padding shorter articles')
 _textPadded = keras.preprocessing.sequence.pad_sequences(_textIndices, maxlen=_longestArticle,
