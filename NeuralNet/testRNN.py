@@ -52,8 +52,15 @@ del _rows
 # Convert each article's text into a series of word embeddings.
 print('Tokenizing corpus/vocabulary')
 _vocabSize = 25000
-t = keras.preprocessing.text.Tokenizer(num_words=_vocabSize)
+t = keras.preprocessing.text.Tokenizer(oov_token="OOV", num_words=_vocabSize)
 t.fit_on_texts(_df.text)
+
+# The tokenizer in keras fails to handle out of vocabulary words correctly.
+# Correct for improper keras OOV behavior and the fact that keras tokenizer
+# is 1-based instead of 0-based (0 is reserved).
+print('Correcting improper OOV handling in keras')
+t.word_index = {word:index for word, index in t.word_index.items() if index <= _vocabSize}
+t.word_index[t.oov_token] = _vocabSize + 1
 
 print('Computing vocabulary size')
 _vocabularyCount = len(t.word_index) + 1   # add 1 for the null value
@@ -76,14 +83,42 @@ _fig.savefig('article_lengths.pdf', bbox_inches='tight')
 
 _longestArticle = len(max(_textIndices, key=len))
 
-
-
-
+# Pad and truncate articles to a uniform length (want to capture at least 90% of the
+# articles in their entirety -- works out to a length of 1296
+#
 print('Padding shorter articles')
-_textPadded = keras.preprocessing.sequence.pad_sequences(_textIndices, maxlen=_longestArticle,
+_padLength = _articleLength[np.argmax(_percentages > 0.90)]
+_textPadded = keras.preprocessing.sequence.pad_sequences(_textIndices, maxlen=_padLength,
                                                          padding='post')
-_embeddingsDict = {}
-_gloveFile = open('../data/wordEmbeddings/glove.6B.100d.txt')
+
+# Build our word embedding dictionary from GloVe
+#
+_embeddingDict = {}
+_dimensions = 50
+with open('../data/wordEmbeddings/glove.6B.%sd.txt' % _dimensions) as _gloveFile:
+    for row in _gloveFile:
+        _junk = row.split()
+        assert len(_junk) == _dimensions + 1
+        _embeddingDict[_junk[0]] = np.array(_junk[1:], dtype='float32')
+
+
+
+
+
+
+
+
+# Creating a reverse dictionary
+reverse_word_map = dict(map(reversed, t.word_index.items()))
+
+# Function takes a tokenized sentence and returns the words
+def sequence_to_text(list_of_indices):
+    # Looking up words in dictionary
+    words = [reverse_word_map.get(letter) for letter in list_of_indices]
+    return(words)
+
+sequence_to_text(max(_textIndices, key=len))
+
 
 
 
