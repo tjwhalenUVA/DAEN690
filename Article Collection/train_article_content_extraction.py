@@ -44,20 +44,15 @@ def post_row(conn, tablename, rec):
     values = tuple(rec.values())
     conn.execute('INSERT INTO '+tablename+' ('+keys+') VALUES ('+question_marks+')', values)
 
-#Check if DB exists
-#if it does just print message; if it doesn't create it and fill it up
-if os.path.isfile(_dbfile) == True:
-    print('db exists')
-    print('please delete db to recreate from xml')
-else:
-    print('db does not exist; creating db')
-    _db = sqlite3.connect(_dbfile)
-    _cursor = _db.cursor()
-    print('creating content table')
-    _cursor.execute('CREATE TABLE content ([id] STRING PRIMARY KEY NOT NULL, [published-at] DATE, [title] STRING, [text] STRING);')
-    print('insert articles to db')
-    for key, value in _artDict.items():
-        print(key)
-        post_row(_cursor, 'content', value)
-    print('commit writes')
-    _db.commit()
+#Set up table and write to db
+print('connect to db')
+_db = sqlite3.connect(_dbfile)
+_cursor = _db.cursor()
+print('creating content table')
+_cursor.execute('CREATE TABLE content ([id] STRING PRIMARY KEY NOT NULL, [published-at] DATE, [title] STRING, [text] STRING);')
+print('insert articles to db')
+for key, value in _artDict.items():
+    print(key)
+    post_row(_cursor, 'content', value)
+print('commit writes')
+_db.commit()
