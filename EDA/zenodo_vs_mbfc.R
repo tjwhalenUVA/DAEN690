@@ -63,6 +63,11 @@ lean.df %>%
     scale_color_manual(values = c('grey30', 'purple', 'grey80')) +
     labs(x='mediabiasfactcheck.com', y='Zenodo Hyperpartisan\nDataset')
 
-lean.df %>%
+disagree.df <-
+    lean.df %>%
     mutate(match = ifelse(mbfc == zenodo, 'yes', 'no')) %>%
-    filter(match == 'no')
+    filter(match == 'no' | is.na(match))
+
+write.csv(disagree.df,
+           file = paste0(wkng.dir, "/zenodo_vs_mbcf_disagreement.csv"),
+           row.names = F)
