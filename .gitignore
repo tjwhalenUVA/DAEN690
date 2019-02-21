@@ -4,5 +4,7 @@
 *.db
 #ignore virtual environment (pycharm-generated)
 venv/
-#ignore r history files
+#ignore r files associated with saved workspaces and projects
 *.Rhistory
+.Rproj.user
+*.Rproj
