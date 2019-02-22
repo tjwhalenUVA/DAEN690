@@ -106,7 +106,7 @@ left_join(content %>% select(id, `published-at`),
     geom_hline(yintercept = seq(0.5, 5.5, 1)) +
     theme_grey() +
     labs(x='Year Article Published', y='Leaning') +
-    geom_vline(xintercept = 2012.5, color='red') +
-    geom_text(aes(x=2011.5, y='least',
-                  label='Cut Off Year (2012)'),
+    geom_vline(xintercept = 2007.5, color='red') +
+    geom_text(aes(x=2006.5, y='least',
+                  label='Cut Off Year (2007)'),
               angle=90, color='red')
