@@ -22,16 +22,18 @@ _deletefile = r'%s/toBeDeleted.csv' % _thisFile
 #_cursor = _db.cursor()
 
 info = csv.reader(open(_deletefile))  
-for row in info :
-    row = str(row[0]).strip(' ')
+for row in info:
+    row = row[0]
     print(row)
-    print("DELETE FROM lean WHERE url LIKE '%{0}%';".format(row))
+    sql = "DELETE FROM lean WHERE url LIKE '%{0}%';".format(row)
+    print(sql)
     
     _db = sqlite3.connect(_dbfile)
     _cursor = _db.cursor()
-    _cursor.execute("DELETE FROM lean WHERE url LIKE '%row[0]%' ;")
+    _cursor.execute(sql)
     _db.commit()
     _cursor.close()
+
 
 
 
