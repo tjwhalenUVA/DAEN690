@@ -25,14 +25,35 @@ _updateBias = r'%s/toBeUpdated.csv' % _thisFile
 info = csv.reader(open(_deletefile))  
 for row in info:
     row = row[0]
+    sql1 = "DELETE FROM lean WHERE url LIKE '%{0}%';".format(row)
+    _db = sqlite3.connect(_dbfile)
+    _cursor = _db.cursor()
+    _cursor.execute(sql1)
+    _db.commit()
+    _cursor.close()
+
+info = csv.reader(open(_updateBias))
+for row in info:
+    row0 = row[0]
+    row1 = row[1]
+    print(row0)
+    print(row1)
+    print("UPDATE lean SET bias = '{1}' WHERE url LIKE '%{0}%';".format(row0, row1))
+    sql2 = "UPDATE lean SET bias = '{1}' WHERE url LIKE '%{0}%';".format(row0, row1);
+    _db = sqlite3.connect(_dbfile)
+    _cursor = _db.cursor()
+    _cursor.execute(sql2)
+    _db.commit()
+    _cursor.close()
+    
+    
+    
     sql = "DELETE FROM lean WHERE url LIKE '%{0}%';".format(row)
     _db = sqlite3.connect(_dbfile)
     _cursor = _db.cursor()
     _cursor.execute(sql)
     _db.commit()
     _cursor.close()
-
-info = csv.reader(open(_updateBias)) 
 
 query = "SELECT content.id, lean.id, content.`published-at`, lean.bias \
          FROM content, lean \
