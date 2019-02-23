@@ -17,25 +17,22 @@ import csv
 _thisFile = os.path.dirname(os.path.abspath('__file__'))
 _dbfile = r'%s/articles_zenodo.db' % _thisFile.replace("EDA","Article Collection")
 _deletefile = r'%s/toBeDeleted.csv' % _thisFile
+_updateBias = r'%s/toBeUpdated.csv' % _thisFile
 
-#_db = sqlite3.connect(_dbfile)
-#_cursor = _db.cursor()
+
+
 
 info = csv.reader(open(_deletefile))  
 for row in info:
     row = row[0]
-    print(row)
     sql = "DELETE FROM lean WHERE url LIKE '%{0}%';".format(row)
-    print(sql)
-    
     _db = sqlite3.connect(_dbfile)
     _cursor = _db.cursor()
     _cursor.execute(sql)
     _db.commit()
     _cursor.close()
 
-
-
+info = csv.reader(open(_updateBias)) 
 
 query = "SELECT content.id, lean.id, content.`published-at`, lean.bias \
          FROM content, lean \
