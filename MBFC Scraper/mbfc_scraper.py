@@ -56,7 +56,7 @@ for bias in _sources.keys():
 
 
 import sqlite3
-_dbfile = r'%s/mbfc.db' % _thisFile
+_dbfile = r'%s/articles_zenodo.db' % _thisFile.replace("MBFC Scraper", "Article Collection")
 _db = sqlite3.connect(_dbfile)
-_mbfc_df.to_sql('bias', con=_db, if_exists='replace')
+_mbfc_df.to_sql('mbfc_lean', con=_db, if_exists='replace')
 _db.close()
