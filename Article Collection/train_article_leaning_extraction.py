@@ -37,7 +37,7 @@ def post_row(conn, tablename, rec):
 print('creating leaning table')
 _db = sqlite3.connect(_dbfile)
 _cursor = _db.cursor()
-_cursor.execute('''CREATE TABLE lean
+_cursor.execute('''CREATE TABLE train_lean
 ([id] STRING PRIMARY KEY NOT NULL,
 [hyperpartisan] STRING,
 [bias] STRING,
@@ -47,6 +47,6 @@ _cursor.execute('''CREATE TABLE lean
 print('insert articles to db')
 for key, value in _artDict.items():
     print(key)
-    post_row(_cursor, 'lean', value)
+    post_row(_cursor, 'train_lean', value)
 print('commit writes')
 _db.commit()
