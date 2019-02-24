@@ -10,3 +10,5 @@ venv/
 *.Rproj
 #ignore html files produced for EDA by Rmarkdown scripts
 EDA/*.html
+#ignore pyc files
+*.pyc
