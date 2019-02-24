@@ -37,6 +37,12 @@ content <- dbGetQuery(con,'select * from train_content')
 ```
 
 ```{r}
+#Get mbfc leanings
+mbfc <- dbGetQuery(con,'select * from mbfc_lean')
+dbDisconnect(con)
+```
+
+```{r}
 bias.levels <- c('left', 'left-center', 'least', 'right-center', 'right')
 ```
 
@@ -345,3 +351,64 @@ grid.arrange(bias.yr.tile +
              red.bias.yr.tile,
              ncol=2)
 ```
+
+# Media Bias Fact Check
+
+```{r}
+bias.levels <- c('left', 'leftcenter', 'least', 'rightcenter', 'right')
+#Extract URL main and join mbfc to zenodo
+lean.df <-
+    lean %>%
+    mutate(source = str_split(str_split(url, '//', simplify = T)[,2], fixed('.'), simplify = T)[,1],
+           bias = str_replace(bias, '-', '')) %>%
+    select(source, zenodo = bias) %>%
+    group_by(source, zenodo) %>%
+    count(.) %>%
+    select(-n) %>%
+    left_join(.,
+              mbfc %>%
+                  mutate(source = str_replace(sourceURL, fixed('www.'), ''),
+                         source = str_split(source, fixed('//'), simplify = T)[,2],
+                         source = str_split(source, fixed('.'), simplify = T)[,1]) %>%
+                  select(source, mbfc = bias),
+              by='source') %>%
+    ungroup() %>%
+    mutate(zenodo = factor(zenodo, levels = bias.levels),
+           mbfc = ifelse(mbfc == 'center', 'least', mbfc),
+           mbfc = factor(mbfc, levels = bias.levels))
+```
+
+```{r}
+#Line aesthetics for plot
+dividers.x <- seq(0.5, 5.5, 1)
+dividers.y <- seq(0.5, 5.5, 1)
+grid.df <-
+    bind_rows(data.frame(x = dividers.x, xend = dividers.x, y=0.5, yend=5.5),
+              data.frame(x = 0.5, xend = 5.5, y=dividers.y, yend=dividers.y))
+#Similaruty counts for plot
+sim.df <-
+    lean.df %>%
+    group_by(mbfc, zenodo) %>%
+    count(.)
+#Plot confusion matrix
+lean.df %>%
+    mutate(match = ifelse(mbfc == zenodo, 'yes', 'no')) %>%
+    ggplot() +
+    geom_point(aes(x=mbfc, y=zenodo, color=match), position = 'jitter', show.legend = F) +
+    geom_text(data = sim.df, aes(x=mbfc, y=zenodo, label=n), size = 8) +
+    geom_segment(data = grid.df, aes(x=x, y=y, xend=xend, yend=yend)) +
+    theme_classic() +
+    theme(axis.line = element_blank(),
+          axis.ticks = element_blank()) +
+    scale_color_manual(values = c('grey30', 'purple', 'grey80')) +
+    labs(x='mediabiasfactcheck.com', y='Zenodo Hyperpartisan\nDataset')
+```
+
+```{r}
+disagree.df <-
+    lean.df %>%
+    mutate(match = ifelse(mbfc == zenodo, 'yes', 'no')) %>%
+    filter(match == 'no' | is.na(match))
+disagree.df
+```
+
