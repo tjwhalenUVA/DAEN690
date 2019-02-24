@@ -140,7 +140,7 @@ model.add(keras.layers.Conv1D(filters=_dimensions, kernel_size=5, activation='re
 model.add(keras.layers.MaxPool1D(pool_size=5))
 model.add(keras.layers.Flatten())
 model.add(keras.layers.Dense(units=_dimensions, activation='relu'))
-model.add(keras.layers.Dense(5, activation='sigmoid'))
+model.add(keras.layers.Dense(5, activation='softmax'))
 
 model.summary()
 model.compile(optimizer='adam',
@@ -154,13 +154,41 @@ _leanDict = {'left': [1,0,0,0,0],
              'right': [0,0,0,0,1]}
 _leanVals = np.array([_leanDict[k] for k in _df.lean])
 
-model.fit(_articleSequencesPadded, _leanVals, epochs=10)
+splitPoint = int(np.floor(len(_leanVals) * 0.8))
+_history = model.fit(_articleSequencesPadded[:splitPoint], _leanVals[:splitPoint], epochs=20, batch_size=512,
+          validation_data=(_articleSequencesPadded[splitPoint:], _leanVals[splitPoint:]))
 
+_historyDict = _history.history
+_historyDict.keys()
 
+acc = _historyDict['categorical_accuracy']
+val_acc = _historyDict['val_categorical_accuracy']
+loss = _historyDict['loss']
+val_loss = _historyDict['val_loss']
 
+epochs = range(1, len(acc) + 1)
 
+f1 = plt.figure()
+plt.plot(epochs, loss, 'b:', label='Training loss')
+plt.plot(epochs, val_loss, 'b', label='Validation loss')
+plt.title('Training and validation loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
 
+f1.show()
+f1.savefig("initial_cnn_results_loss.pdf", bbox_inches='tight')
 
+f2 = plt.figure()
+plt.plot(epochs, acc, 'b:', label='Training categorical accuracy')
+plt.plot(epochs, val_acc, 'b', label='Validation categorical accuracy')
+plt.title('Training and validation categorical accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Categorical accuracy')
+plt.legend()
+
+f2.show()
+f2.savefig("initial_cnn_results_cAcc.pdf", bbox_inches='tight')
 
 
 
