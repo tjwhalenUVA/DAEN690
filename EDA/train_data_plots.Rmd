@@ -29,11 +29,11 @@ con <- dbConnect(SQLite(), dbname=db.file)
 ```
 
 ```{r}
-lean <- dbGetQuery(con,'select * from lean')
+lean <- dbGetQuery(con,'select * from train_lean')
 ```
 
 ```{r}
-content <- dbGetQuery(con,'select * from content')
+content <- dbGetQuery(con,'select * from train_content')
 ```
 
 ```{r}
