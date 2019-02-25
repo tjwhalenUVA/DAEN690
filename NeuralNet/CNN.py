@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
-
-# Test for running RNN - recurrent neural net
+#
+# Author:  Paul M. Brinegar, II
+#
+# Date Created:  20190224
+#
+# CNN.py - Code for running a CNN (Convolutional Neural Net)
 #
 # This code should extract the article ID, leaning, and text from our SQLite database,
 # convert the text for each article into a series of embedded word vectors (padding
-# as necessary), and feed the results into a recurrent neural net.  We will be using
+# as necessary), and feed the results into a convolutional neural net.  We will be using
 # the GloVe dataset as our source for word embedding vectors.
 #
 # Understanding of word embeddings and example code found at:
@@ -46,7 +50,7 @@ _cursor = _db.cursor()
 #
 print('Pulling article IDs, leanings, and text from database')
 _cursor.execute("SELECT ln.id, ln.bias, cn.text " +
-                "FROM lean ln, content cn " +
+                "FROM train_lean ln, train_content cn " +
                 "WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id")
 _df = pd.DataFrame(_cursor.fetchall(), columns=('id', 'lean', 'text'))
 _db.close()
@@ -167,7 +171,7 @@ _leanVals = np.array([_leanValuesDict[k] for k in _df.lean])
 # class in both the training and test/validation set.  Thus we don't end
 # up with a horribly imbalanced set as part of our cross validation.
 #
-_folds = 5
+_folds = 10
 _epochNum = 10
 
 print('Performing %s fold cross validation, %s epochs per fold' % (_folds, _epochNum))
@@ -182,7 +186,7 @@ _kfold = StratifiedKFold(n_splits=_folds, shuffle=True)
 j = 1
 for _train, _val in _kfold.split(_articleSequencesPadded, _leanVals):
     print('Fold %s\n' % j)
-    # Construct the Tensorflow/keras model
+    # Construct the Tensorflow/keras model for a convolutional neural net
     #
     model = keras.Sequential()
     model.add(keras.layers.Embedding(input_dim=_vocabSize,
@@ -233,7 +237,8 @@ plt.ylabel('Loss')
 plt.legend()
 
 f1.show()
-f1.savefig("initial_cnn_results_loss.pdf", bbox_inches='tight')
+f1.show()
+f1.savefig("cnn_%s_fold_cross_validation_results_loss.pdf" % _folds, bbox_inches='tight')
 
 f2 = plt.figure()
 plt.plot(epochs, acc, 'b:', label='Training categorical accuracy')
@@ -244,7 +249,8 @@ plt.ylabel('Categorical accuracy')
 plt.legend()
 
 f2.show()
-f2.savefig("initial_cnn_results_cAcc.pdf", bbox_inches='tight')
+f2.show()
+f2.savefig("initial_cnn_%s_fold_cross_validation_results_cAcc.pdf" % _folds, bbox_inches='tight')
 
 
 
@@ -263,9 +269,6 @@ f2.savefig("initial_cnn_results_cAcc.pdf", bbox_inches='tight')
 #     for theitem in _top10percent:
 #         filename.write('%s\n' % theitem)
 #
-#
-#
-#
 # _fig = plt.figure()
 # plt.plot(_articleLength, _percentages, 'b')
 # plt.title('Percentage of Articles with Length < X')
@@ -274,13 +277,6 @@ f2.savefig("initial_cnn_results_cAcc.pdf", bbox_inches='tight')
 # _fig.savefig('article_lengths.pdf', bbox_inches='tight')
 #
 # _longestArticle = len(max(_textIndices, key=len))
-#
-#
-#
-#
-#
-#
-#
 #
 #
 #
@@ -294,13 +290,3 @@ f2.savefig("initial_cnn_results_cAcc.pdf", bbox_inches='tight')
 #     return(words)
 #
 # sequence_to_text(max(_textIndices, key=len))
-#
-#
-#
-#
-# from keras.preprocessing.text import one_hot
-# from keras.preprocessing.sequence import pad_sequences
-# from keras.models import Sequential
-# from keras.layers import Dense
-# from keras.layers import Flatten
-# from keras.layers.embeddings import Embedding
