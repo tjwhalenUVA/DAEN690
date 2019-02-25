@@ -41,7 +41,9 @@ _cursor.execute('''CREATE TABLE train_lean
 ([id] STRING PRIMARY KEY NOT NULL,
 [hyperpartisan] STRING,
 [bias] STRING,
+[bias_final] STRING,
 [url] STRING,
+[url_keep] STRING,
 [labeled-by] STRING);''')
 
 print('insert articles to db')
