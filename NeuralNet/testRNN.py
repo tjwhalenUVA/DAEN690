@@ -13,6 +13,7 @@
 
 # Import all the packages!
 #
+print('Importing packages')
 import os
 import sqlite3
 
@@ -20,6 +21,7 @@ import pandas as pd
 import tensorflow as tf
 from tensorflow import keras
 import numpy as np
+from sklearn.model_selection import StratifiedKFold
 
 from sys import platform as sys_pf
 if sys_pf == 'darwin':
@@ -128,45 +130,99 @@ for k, v in t.word_index.items():
         pass
 
 
-# Construct the Tensorflow/keras model
+# Encode the leanings ultimately as one-hot categorical vectors
 #
-model = keras.Sequential()
-model.add(keras.layers.Embedding(input_dim=_vocabSize,
-                                 output_dim=_dimensions,
-                                 embeddings_initializer=keras.initializers.Constant(_embeddingMatrix),
-                                 input_length=_padLength,
-                                 trainable=False))
-model.add(keras.layers.Conv1D(filters=_dimensions, kernel_size=5, activation='relu'))
-model.add(keras.layers.MaxPool1D(pool_size=5))
-model.add(keras.layers.Flatten())
-model.add(keras.layers.Dense(units=_dimensions, activation='relu'))
-model.add(keras.layers.Dense(5, activation='softmax'))
+# Because we're using sklearn's StratifiedKFold routine below, we
+# have to do a two-step process for creating our categorical vectors.
+# First, we convert our "left"/'right" leanings into integers.  These
+# get fed through the StratifiedKFold routine.  On the back side of that
+# routine, we convert those integers into one-hot categorical vectors results
+# ['left', 'left-center', 'least', 'right-center', 'right]
+# The neural net will output article probabilities for each of these categories
+#
+print('Encoding leanings')
+_leanValuesDict = {'left': 0,
+                   'left-center': 1,
+                   'least': 2,
+                   'right-center': 3,
+                   'right': 4}
+_leanVectorDict = {0: [1,0,0,0,0],
+                   1: [0,1,0,0,0],
+                   2: [0,0,1,0,0],
+                   3: [0,0,0,1,0],
+                   4: [0,0,0,0,1]}
+_leanVals = np.array([_leanValuesDict[k] for k in _df.lean])
 
-model.summary()
-model.compile(optimizer='adam',
-              loss='categorical_crossentropy',
-              metrics=['categorical_accuracy'])
 
-_leanDict = {'left': [1,0,0,0,0],
-             'left-center': [0,1,0,0,0],
-             'least': [0,0,1,0,0],
-             'right-center': [0,0,0,1,0],
-             'right': [0,0,0,0,1]}
-_leanVals = np.array([_leanDict[k] for k in _df.lean])
+# Perform an K-fold cross validation of the training set
+# Had to manually create this due to the way keras' model.fit
+# handles splitting.  Keras doesn't randomly or sequentially split
+# a dataset into train/validation sets; rather, it just always takes
+# the last N percent of the set as the validation set... can't
+# do cross validation like that unless we shuffled the data
+# each time through.
+#
+# By using sklearn's StratifiedKFold routine, we split the dataset into
+# K folds while attempting to preserve the relative percentages of each
+# class in both the training and test/validation set.  Thus we don't end
+# up with a horribly imbalanced set as part of our cross validation.
+#
+_folds = 5
+_epochNum = 10
 
-splitPoint = int(np.floor(len(_leanVals) * 0.8))
-_history = model.fit(_articleSequencesPadded[:splitPoint], _leanVals[:splitPoint], epochs=20, batch_size=512,
-          validation_data=(_articleSequencesPadded[splitPoint:], _leanVals[splitPoint:]))
+print('Performing %s fold cross validation, %s epochs per fold' % (_folds, _epochNum))
 
-_historyDict = _history.history
-_historyDict.keys()
+acc=[]
+val_acc=[]
+loss=[]
+val_loss=[]
 
-acc = _historyDict['categorical_accuracy']
-val_acc = _historyDict['val_categorical_accuracy']
-loss = _historyDict['loss']
-val_loss = _historyDict['val_loss']
+_kfold = StratifiedKFold(n_splits=_folds, shuffle=True)
 
-epochs = range(1, len(acc) + 1)
+j = 1
+for _train, _val in _kfold.split(_articleSequencesPadded, _leanVals):
+    print('Fold %s\n' % j)
+    # Construct the Tensorflow/keras model
+    #
+    model = keras.Sequential()
+    model.add(keras.layers.Embedding(input_dim=_vocabSize,
+                                     output_dim=_dimensions,
+                                     embeddings_initializer=keras.initializers.Constant(_embeddingMatrix),
+                                     input_length=_padLength,
+                                     trainable=False))
+    model.add(keras.layers.Conv1D(filters=_dimensions, kernel_size=5, activation='relu'))
+    model.add(keras.layers.MaxPool1D(pool_size=5))
+    model.add(keras.layers.Flatten())
+    model.add(keras.layers.Dense(units=_dimensions, activation='relu'))
+    model.add(keras.layers.Dense(5, activation='softmax'))
+
+    model.summary()
+    model.compile(optimizer='adam',
+                  loss='categorical_crossentropy',
+                  metrics=['categorical_accuracy'])
+
+
+    _history = model.fit(_articleSequencesPadded[_train], np.array([_leanVectorDict[k] for k in _leanVals[_train]]),
+            epochs=_epochNum, batch_size=512,
+            validation_data=(_articleSequencesPadded[_val], np.array([_leanVectorDict[k] for k in _leanVals[_val]])),
+            verbose=2)
+
+    _historyDict = _history.history
+
+    acc.append(_historyDict['categorical_accuracy'])
+    val_acc.append(_historyDict['val_categorical_accuracy'])
+    loss.append(_historyDict['loss'])
+    val_loss.append(_historyDict['val_loss'])
+
+    j += 1
+
+acc = np.mean(np.matrix(acc), axis=0)
+val_acc = np.mean(np.matrix(val_acc), axis=0)
+loss = np.mean(np.matrix(loss), axis=0)
+val_loss = np.mean(np.matrix(val_loss), axis=0)
+
+
+epochs = range(1, _epochNum + 1)
 
 f1 = plt.figure()
 plt.plot(epochs, loss, 'b:', label='Training loss')
@@ -218,33 +274,33 @@ f2.savefig("initial_cnn_results_cAcc.pdf", bbox_inches='tight')
 # _fig.savefig('article_lengths.pdf', bbox_inches='tight')
 #
 # _longestArticle = len(max(_textIndices, key=len))
-
-
-
-
-
-
-
-
-
-
-# Creating a reverse dictionary
-reverse_word_map = dict(map(reversed, t.word_index.items()))
-
-# Function takes a tokenized sentence and returns the words
-def sequence_to_text(list_of_indices):
-    # Looking up words in dictionary
-    words = [reverse_word_map.get(letter) for letter in list_of_indices]
-    return(words)
-
-sequence_to_text(max(_textIndices, key=len))
-
-
-
-
-from keras.preprocessing.text import one_hot
-from keras.preprocessing.sequence import pad_sequences
-from keras.models import Sequential
-from keras.layers import Dense
-from keras.layers import Flatten
-from keras.layers.embeddings import Embedding
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+# # Creating a reverse dictionary
+# reverse_word_map = dict(map(reversed, t.word_index.items()))
+#
+# # Function takes a tokenized sentence and returns the words
+# def sequence_to_text(list_of_indices):
+#     # Looking up words in dictionary
+#     words = [reverse_word_map.get(letter) for letter in list_of_indices]
+#     return(words)
+#
+# sequence_to_text(max(_textIndices, key=len))
+#
+#
+#
+#
+# from keras.preprocessing.text import one_hot
+# from keras.preprocessing.sequence import pad_sequences
+# from keras.models import Sequential
+# from keras.layers import Dense
+# from keras.layers import Flatten
+# from keras.layers.embeddings import Embedding
