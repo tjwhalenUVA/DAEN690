@@ -220,20 +220,21 @@ for _train, _val in _kfold.split(_articleSequencesPadded, _leanVals):
 
     j += 1
 
-acc = np.mean(np.matrix(acc), axis=0)
-val_acc = np.mean(np.matrix(val_acc), axis=0)
-loss = np.mean(np.matrix(loss), axis=0)
-val_loss = np.mean(np.matrix(val_loss), axis=0)
+acc = np.mean(np.matrix(acc), axis=0).tolist()[0]
+val_acc = np.mean(np.matrix(val_acc), axis=0).tolist()[0]
+loss = np.mean(np.matrix(loss), axis=0).tolist()[0]
+val_loss = np.mean(np.matrix(val_loss), axis=0).tolist()[0]
 
 
 epochs = range(1, _epochNum + 1)
 
 f1 = plt.figure()
-plt.plot(epochs, loss, 'b:', label='Training loss')
-plt.plot(epochs, val_loss, 'b', label='Validation loss')
-plt.title('Training and validation loss')
+plt.plot(epochs, loss, 'b:', label='Training Cat. Cross-Entropy Loss')
+plt.plot(epochs, val_loss, 'b', label='Validation Cat. Cross-Entrypy Loss')
+plt.ylim(0,1)
+plt.title('Training and Validation Categorical Cross-Entropy Loss')
 plt.xlabel('Epochs')
-plt.ylabel('Loss')
+plt.ylabel('Categorical Cross-Entropy Loss')
 plt.legend()
 
 f1.show()
@@ -241,16 +242,17 @@ f1.show()
 f1.savefig("cnn_%s_fold_cross_validation_results_loss.pdf" % _folds, bbox_inches='tight')
 
 f2 = plt.figure()
-plt.plot(epochs, acc, 'b:', label='Training categorical accuracy')
-plt.plot(epochs, val_acc, 'b', label='Validation categorical accuracy')
-plt.title('Training and validation categorical accuracy')
+plt.plot(epochs, acc, 'b:', label='Training Categorical Accuracy')
+plt.plot(epochs, val_acc, 'b', label='Validation Categorical Accuracy')
+plt.ylim(0,1)
+plt.title('Training and Validation Categorical Accuracy')
 plt.xlabel('Epochs')
-plt.ylabel('Categorical accuracy')
+plt.ylabel('Categorical Accuracy')
 plt.legend()
 
 f2.show()
 f2.show()
-f2.savefig("initial_cnn_%s_fold_cross_validation_results_cAcc.pdf" % _folds, bbox_inches='tight')
+f2.savefig("cnn_%s_fold_cross_validation_results_cAcc.pdf" % _folds, bbox_inches='tight')
 
 
 
