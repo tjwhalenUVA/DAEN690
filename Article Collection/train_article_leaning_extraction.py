@@ -41,7 +41,9 @@ _cursor.execute('''CREATE TABLE train_lean
 ([id] STRING PRIMARY KEY NOT NULL,
 [hyperpartisan] STRING,
 [bias] STRING,
+[bias_final] STRING,
 [url] STRING,
+[url_keep] STRING,
 [labeled-by] STRING);''')
 
 print('insert articles to db')
@@ -50,3 +52,36 @@ for key, value in _artDict.items():
     post_row(_cursor, 'train_lean', value)
 print('commit writes')
 _db.commit()
+
+# Update bias_final to reflect MBFC ratings
+import pandas as pd
+_updateBias = r'%s/toBeUpdated.csv' % _thisFile
+_deletefile = r'%s/toBeDeleted.csv' % _thisFile
+ub = pd.read_csv(_updateBias, header = None )
+u_url_keep = pd.read_csv(_deletefile, header = None )
+
+
+for index,row in ub.iterrows():
+    row0 = row[0]
+    row1 = row[1]
+    sql = "UPDATE train_lean SET bias_final = '{1}' WHERE url LIKE '%{0}%';".format(row0, row1);
+    sql2 = "UPDATE train_lean SET bias_final = bias WHERE bias_final IS NULL;"
+    _db = sqlite3.connect(_dbfile)
+    _cursor = _db.cursor()
+    _cursor.execute(sql)
+    _cursor.execute(sql2)
+    _db.commit()
+    _cursor.close()
+    
+for index,row in u_url_keep.iterrows():
+    row0 = row[0]
+    sql = "UPDATE train_lean SET url_keep = 0 WHERE url LIKE '%{0}%';".format(row0);
+    sql2 = "UPDATE train_lean SET url_keep = 1 WHERE url_keep IS NULL;"
+    _db = sqlite3.connect(_dbfile)
+    _cursor = _db.cursor()
+    _cursor.execute(sql)
+    _cursor.execute(sql2)
+    _db.commit()
+    _cursor.close()
+
+

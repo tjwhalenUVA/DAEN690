@@ -49,7 +49,13 @@ print('connect to db')
 _db = sqlite3.connect(_dbfile)
 _cursor = _db.cursor()
 print('creating content table')
-_cursor.execute('CREATE TABLE train_content ([id] STRING PRIMARY KEY NOT NULL, [published-at] DATE, [title] STRING, [text] STRING);')
+_cursor.execute('''
+                CREATE TABLE train_content 
+                ([id] STRING PRIMARY KEY NOT NULL,
+                [published-at] DATE,
+                [title] STRING,
+                [text] STRING);''')
+
 print('insert articles to db')
 for key, value in _artDict.items():
     print(key)
