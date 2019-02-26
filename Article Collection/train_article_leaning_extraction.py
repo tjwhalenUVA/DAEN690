@@ -52,3 +52,23 @@ for key, value in _artDict.items():
     post_row(_cursor, 'train_lean', value)
 print('commit writes')
 _db.commit()
+
+# Update bias_final to reflect MBFC ratings
+import pandas as pd
+_updateBias = r'%s/toBeUpdated.csv' % _thisFile
+info = pd.read_csv(_updateBias, header = None )
+
+
+for index,row in info.iterrows():
+    row0 = row[0]
+    row1 = row[1]
+    sql = "UPDATE train_lean SET bias_final = '{1}' WHERE url LIKE '%{0}%';".format(row0, row1);
+    sql2 = "UPDATE train_lean SET bias_final = bias WHERE bias_final IS NULL;"
+    _db = sqlite3.connect(_dbfile)
+    _cursor = _db.cursor()
+    _cursor.execute(sql)
+    _cursor.execute(sql2)
+    _db.commit()
+    _cursor.close()
+
+
