@@ -8,6 +8,7 @@ venv/
 *.Rhistory
 .Rproj.user
 *.Rproj
+.RData
 #ignore html files produced for EDA by Rmarkdown scripts
 EDA/*.html
 #ignore pyc files
