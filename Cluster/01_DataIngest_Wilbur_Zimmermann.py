@@ -51,36 +51,26 @@ import time
 begin_time = time.time()
 #%%
 # Required python packages
-
 import os
-print('Importing packages')
 import re
 import glob
 import numpy as np
 import pandas as pd
-import os
-import sqlite3
-import pandas as pd
 #%%
 # Set global path variables
-_rootPath = os.path.dirname(os.path.abspath('__file__'))
-_dbFile = r'%s/Article Collection/articles_zenodo.db' % _rootPath
+directory = os.path.dirname('__file__')
 
+# Set path to the .csv resume files
+path = os.path.join(directory, '..', 'data')
+
+# Set path for the concatenated files
+output = os.path.join(directory,'..','script_output')
 #%%
-# Set up our connection to the database
-#
-_db = sqlite3.connect(_dbFile)
-_cursor = _db.cursor()
-
-# Pull the relevant bits of data out of the database and
-# store them in a pandas dataframe.
-#
-print('Pulling article IDs, leanings, and text from database')
-_cursor.execute("SELECT ln.id, ln.bias_final, cn.text " +
-                "FROM train_lean ln, train_content cn " +
-                "WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id AND ln.url_keep='1'")
-_df = pd.DataFrame(_cursor.fetchall(), columns=('id', 'lean', 'text'))
-_db.close()
+# Gather up the path and names of the individual resume files into a list
+allResumes = glob.glob(os.path.join(path, '*.csv'))
+fileNames = []
+for i in range(len(allResumes)):
+    fileNames.append(os.path.split(allResumes[i])[1])
 # %%
 # Read resumes into a Pandas DataFrame and assign a column name 'Resumes'
 print('\nIngest Data: Reading in resume files from: ',
