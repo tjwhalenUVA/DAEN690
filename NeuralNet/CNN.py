@@ -24,6 +24,7 @@ import sqlite3
 import pandas as pd
 import tensorflow as tf
 from tensorflow import keras
+from keract import get_activations
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
 
@@ -49,9 +50,9 @@ _cursor = _db.cursor()
 # store them in a pandas dataframe.
 #
 print('Pulling article IDs, leanings, and text from database')
-_cursor.execute("SELECT ln.id, ln.bias, cn.text " +
+_cursor.execute("SELECT ln.id, ln.bias_final, cn.text " +
                 "FROM train_lean ln, train_content cn " +
-                "WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id")
+                "WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id AND ln.url_keep='1'")
 _df = pd.DataFrame(_cursor.fetchall(), columns=('id', 'lean', 'text'))
 _db.close()
 
@@ -237,9 +238,7 @@ plt.xlabel('Epochs')
 plt.ylabel('Categorical Cross-Entropy Loss')
 plt.legend()
 
-f1.show()
-f1.show()
-f1.savefig("cnn_%s_fold_cross_validation_results_loss.pdf" % _folds, bbox_inches='tight')
+#f1.savefig("cnn_%s_fold_cross_validation_results_loss.pdf" % _folds, bbox_inches='tight')
 
 f2 = plt.figure()
 plt.plot(epochs, acc, 'b:', label='Training Categorical Accuracy')
@@ -250,9 +249,7 @@ plt.xlabel('Epochs')
 plt.ylabel('Categorical Accuracy')
 plt.legend()
 
-f2.show()
-f2.show()
-f2.savefig("cnn_%s_fold_cross_validation_results_cAcc.pdf" % _folds, bbox_inches='tight')
+#f2.savefig("cnn_%s_fold_cross_validation_results_cAcc.pdf" % _folds, bbox_inches='tight')
 
 
 
