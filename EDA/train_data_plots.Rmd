@@ -188,9 +188,10 @@ reduced.df <-
     mutate(Year = lubridate::year(`published-at`),
            Year = ifelse(is.na(Year), 2021, Year),
            PublishDate = ifelse(Year == 2021, 'No', 'Yes'),
-           bias = factor(bias, levels = bias.levels)) %>%
+           bias_final = factor(bias_final, levels = bias.levels)) %>%
     filter(!is.na(`published-at`),
-           Year >= 2009)
+           Year >= 2009,
+           url_keep == 1)
 ```
 
 ### Count of Articles in Leaning Categories
@@ -200,9 +201,9 @@ reduced.df <-
 red.bias.cnt <-
     reduced.df %>%
     ggplot() +
-    geom_bar(aes(x=bias, fill=bias), stat = 'count') +
+    geom_bar(aes(x=bias_final, fill=bias_final), stat = 'count') +
     geom_text(stat='count',
-              aes(x=bias, label=..count..),
+              aes(x=bias_final, label=..count..),
               vjust=1,
               color=c('white', 'grey40', 'grey40', 'grey40', 'white')) +
     scale_fill_manual(values = c('dodgerblue2', 'lightblue',
@@ -255,9 +256,9 @@ grid.arrange(hyp.cnt +
 ```{r}
 #Table counting bias vs hyperpartisan
 reduced.df %>%
-    group_by(hyperpartisan, bias) %>%
+    group_by(hyperpartisan, bias_final) %>%
     count() %>%
-    spread(bias, n) %>%
+    spread(bias_final, n) %>%
     knitr::kable(.)
 ```
 
@@ -269,11 +270,11 @@ red.art.bias.cnt <-
     reduced.df %>%
     mutate(source = str_split(str_split(url, '//', simplify = T)[,2],
                               fixed('.'), simplify = T)[,1]) %>%
-    group_by(source, bias) %>%
+    group_by(source, bias_final) %>%
     count() %>%
     arrange(desc(n)) %>%
     head(15) %>%
-    ggplot(aes(x= reorder(source, -n), y=n, fill=bias)) +
+    ggplot(aes(x= reorder(source, -n), y=n, fill=bias_final)) +
     geom_bar(stat = 'identity') +
     scale_fill_manual(values = c('dodgerblue2', 'lightblue',
                                  'gray',
@@ -330,11 +331,11 @@ grid.arrange(art.year.cnt +
 ```{r}
 red.bias.yr.tile <-
     reduced.df %>%
-    group_by(Year, bias) %>%
+    group_by(Year, bias_final) %>%
     count(.) %>%
     rename('Number of Articles' = n) %>%
     ggplot() +
-    geom_tile(aes(x=Year, y=bias, fill=`Number of Articles`)) +
+    geom_tile(aes(x=Year, y=bias_final, fill=`Number of Articles`)) +
     geom_hline(yintercept = seq(0.5, 5.5, 1)) +
     theme_grey() +
     labs(x='Year Article Published', y=NULL, title = 'Reduced') +
@@ -410,5 +411,32 @@ disagree.df <-
     mutate(match = ifelse(mbfc == zenodo, 'yes', 'no')) %>%
     filter(match == 'no' | is.na(match))
 disagree.df
+```
+
+# Final Train Dataset
+
+```{r}
+left_join(content, lean, by='id') %>%
+    mutate(Year = lubridate::year(`published-at`),
+           Year = ifelse(is.na(Year), 2021, Year),
+           PublishDate = ifelse(Year == 2021, 'No', 'Yes'),
+           bias_final = factor(bias_final, levels = c('left', 'left-center', 'least', 'right-center', 'right'))) %>%
+    filter(!is.na(`published-at`),
+           Year >= 2009,
+           url_keep == 1) %>%
+    ggplot() +
+    geom_bar(aes(x=bias_final, fill=bias_final), stat = 'count') +
+    geom_text(stat='count',
+              aes(x=bias_final, label=..count..),
+              vjust=1,
+              color=c('white', 'grey40', 'grey40', 'grey40', 'white')) +
+    scale_fill_manual(values = c('dodgerblue2', 'lightblue',
+                                 'gray',
+                                 'indianred1', 'firebrick')) +
+    theme_grey() +
+    theme(legend.position = 'none') +
+    labs(x='Article Bias', y='# of Articles') +
+    scale_y_continuous(labels = scales::comma,
+                       limits = c(0, 190000))
 ```
 
