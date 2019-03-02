@@ -32,6 +32,10 @@ for a in _articles:
     tmp['text'] = gettext(a)
     _artDict[a.attrib['id']] = tmp
 
+del _tree
+del _root
+del _articles
+
 print('setting up db')
 #Write data to SQLlite DB
 import sqlite3
