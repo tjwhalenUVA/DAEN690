@@ -13,3 +13,6 @@ venv/
 EDA/*.html
 #ignore pyc files
 *.pyc
+#ignore GloVe word embedding text files
+glove*.txt
+

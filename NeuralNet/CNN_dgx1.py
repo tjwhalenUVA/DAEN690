@@ -1,4 +1,4 @@
-#! /Users/dpbrinegar/anaconda3/envs/gitHub/bin/python
+#! /usr/bin/python
 # -*- coding: utf-8 -*-
 #
 # Author:  Paul M. Brinegar, II
@@ -19,11 +19,15 @@
 import argparse
 
 def main(_dbFile, _gloveFile, _vocabSize, _captureFraction, _crossVal, _folds, _epochNum,
-         _cnnFilters, _cnnKernel, _cnnPool, _cnnFlatten, _cnnDropout, _cnnDense, _verbose, _graphs):
+         _cnnFilters, _cnnKernel, _cnnPool, _cnnFlatten, _cnnDropout, _cnnDense, _verbose, _graphs,
+         _GPUid):
     #
     # Import all the packages!
     print('Importing packages')
     import os
+    if _GPUid != None:
+        os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+        os.environ['CUDA_VISIBLE_DEVICES'] = '%s' % _GPUid
     import sqlite3
 
     from pandas import DataFrame
@@ -249,7 +253,7 @@ def main(_dbFile, _gloveFile, _vocabSize, _captureFraction, _crossVal, _folds, _
                                                                          _cnnFilters, _cnnKernel, _cnnPool)
             if _cnnFlatten:
                 _lossfile = _lossfile + 'fl_'
-            if _cnnDropout != None
+            if _cnnDropout != None:
                 _lossfile = _lossfile + '_do%0.2f' % _cnnDropout
             _lossfile = _lossfile + '_dn%d.pdf' % _cnnDense
             f1.savefig(_lossfile, bbox_inches='tight')
@@ -267,7 +271,7 @@ def main(_dbFile, _gloveFile, _vocabSize, _captureFraction, _crossVal, _folds, _
                                                                          _cnnFilters, _cnnKernel, _cnnPool)
             if _cnnFlatten:
                 _accfile = _accfile + 'fl_'
-            if _cnnDropout != None
+            if _cnnDropout != None:
                 _accfile = _accfile + '_do%0.2f' % _cnnDropout
             _accfile = _accfile + '_dn%d.pdf' % _cnnDense
             f2.savefig(_accfile, bbox_inches='tight')
@@ -334,16 +338,17 @@ if __name__ == '__main__':
     _parser.add_argument('-V', '--verbose', type=int, default=1, choices=[0, 1, 2],
                          help='Verbosity of neural net training output (0=none, 1=progress bar, 2=epochs only')
     _parser.add_argument('-G', '--graphs', action='store_true', help='Plot/save graphs')
-
+    _parser.add_argument('-Z', '--gpuid', type=int, default=None, 
+                         help='ID of the GPU to use (for none specified, skip this argument)')
     _args = _parser.parse_args()
 
-    #print(_args)
+#    print(_args)
 
     main(_args.inputfile, _args.glovefile, _args.vocabsize, _args.capturefraction,
          _args.crossvalidate, _args.folds, _args.epochs,
          _args.convolutionfilters, _args.kernel, _args.poollayer, _args.flattenlayer,
          _args.dropoutlayer, _args.denselayer,
-         _args.verbose, _args.graphs)
+         _args.verbose, _args.graphs, _args.gpuid)
 
 
 
