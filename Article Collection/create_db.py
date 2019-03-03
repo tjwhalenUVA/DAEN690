@@ -6,3 +6,5 @@ print('############## Loading Test Articles ##############')
 import test_article_content_extraction
 print('############## Loading Test Leaning ##############')
 import test_article_leaning_extraction
+print('############## Media Bias Fact Check Scrape ##############')
+import mbfc_scraper
