@@ -152,7 +152,9 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
 
     # Start the grid search
     _maxRow = None
-    _maxAcc = 0
+    _maxAcc = 0.0
+    _minRow = None
+    _minLoss = np.finfo(np.float32).max
     _acc = []
     _val_acc = []
     _loss = []
@@ -177,7 +179,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             # Load the data from the database
             _cur.execute("SELECT ln.id, ln.bias_final, cn.text " +
                          "FROM train_lean ln, train_content cn " +
-                         "WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id AND ln.url_keep='1' AND ln.id < 25000")
+                         "WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id AND ln.url_keep='1' AND ln.id < 100000")
             _df = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text'))
             _db.close()
 
@@ -361,16 +363,25 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
         _val_loss.append(np.mean(np.matrix(_fval_loss), axis=0).tolist()[0])
 
         # Compare results to the current best results using _val_acc as the measure, and keep the best one
-        if np.max(_val_acc) > _maxAcc:
-            _maxAcc = np.max(_val_acc)
-            _maxEpoch = np.argmax(_val_acc) + 1
+        if np.max(np.mean(np.matrix(_fval_acc), axis=0).tolist()[0]) > _maxAcc:
+            _maxAcc = np.max(np.mean(np.matrix(_fval_acc), axis=0).tolist()[0])
+            _maxEpoch = np.argmax(np.mean(np.matrix(_fval_acc), axis=0).tolist()[0]) + 1
             _maxRow = _row
+        if np.min(np.mean(np.matrix(_fval_loss), axis=0).tolist()[0]) < _minLoss:
+            _minLoss = np.min(np.mean(np.matrix(_fval_loss), axis=0).tolist()[0])
+            _minEpoch = np.argmin(np.mean(np.matrix(_fval_loss), axis=0).tolist()[0])
+            _minRow = _row
 
     print('\n\nResults:')
     print('Greatest Accuracy:  %s' % _maxAcc)
     print('Number of Epochs:   %s' % _maxEpoch)
     print('Parameters:')
     print(_maxRow)
+    print('\n')
+    print('Lowest Loss:        %s' % _minLoss)
+    print('Number of Epochs:   %s' % _minEpoch)
+    print('Parameters:')
+    print(_minRow)
     print('\n')
     print('Training Accuracies:')
     for junk in _acc:
