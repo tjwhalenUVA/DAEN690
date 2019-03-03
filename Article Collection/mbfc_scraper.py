@@ -22,6 +22,7 @@ _sources['rightcenter'] = []
 _sources['right'] = []
 
 #Loop through biases
+import re
 for bias in _pages.keys():
     print('----------'+bias+'----------')
     #Get page conents
@@ -35,7 +36,7 @@ for bias in _pages.keys():
     #Get all links which are the sources
     _link_a = _link_p[1].find_all('a')
     for _l in _link_a:
-        print(_l.text)
+        print(re.sub(r"[\n\t\s]*", "", _l.text))
         _src_page = requests.get(_l.get('href'))
         _src_soup = BeautifulSoup(_src_page.text, 'html.parser')
         for p in _src_soup.find_all('p'):
@@ -56,7 +57,8 @@ for bias in _sources.keys():
 
 
 import sqlite3
-_dbfile = r'%s/articles_zenodo.db' % _thisFile.replace("MBFC Scraper", "Article Collection")
+#_dbfile = r'%s/articles_zenodo.db' % _thisFile.replace("MBFC Scraper", "Article Collection")
+_dbfile = r'%s/articles_zenodo.db' % _thisFile
 _db = sqlite3.connect(_dbfile)
 _mbfc_df.to_sql('mbfc_lean', con=_db, if_exists='replace')
 _db.close()
