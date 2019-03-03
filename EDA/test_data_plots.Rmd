@@ -413,3 +413,30 @@ disagree.df <-
     filter(match == 'no' | is.na(match))
 disagree.df
 ```
+
+# Final Train Dataset
+
+```{r}
+left_join(content, lean, by='id') %>%
+    mutate(Year = lubridate::year(`published-at`),
+           Year = ifelse(is.na(Year), 2021, Year),
+           PublishDate = ifelse(Year == 2021, 'No', 'Yes'),
+           bias_final = factor(bias_final, levels = c('left', 'left-center', 'least', 'right-center', 'right'))) %>%
+    filter(!is.na(`published-at`),
+           Year >= 2009,
+           url_keep == 1) %>%
+    ggplot() +
+    geom_bar(aes(x=bias_final, fill=bias_final), stat = 'count') +
+    geom_text(stat='count',
+              aes(x=bias_final, label=..count..),
+              vjust=1,
+              color=c('white', 'grey40', 'grey40', 'grey40', 'white')) +
+    scale_fill_manual(values = c('dodgerblue2', 'lightblue',
+                                 'gray',
+                                 'indianred1', 'firebrick')) +
+    theme_grey() +
+    theme(legend.position = 'none') +
+    labs(x='Article Bias', y='# of Articles') +
+    scale_y_continuous(labels = scales::comma,
+                       limits = c(0, 25000))
+```
