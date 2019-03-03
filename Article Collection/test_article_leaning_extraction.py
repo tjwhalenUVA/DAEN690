@@ -75,8 +75,8 @@ for index,row in ub.iterrows():
     
 for index,row in u_url_keep.iterrows():
     row0 = row[0]
-    sql = "UPDATE train_lean SET url_keep = 0 WHERE url LIKE '%{0}%';".format(row0);
-    sql2 = "UPDATE train_lean SET url_keep = 1 WHERE url_keep IS NULL;"
+    sql = "UPDATE test_lean SET url_keep = 0 WHERE url LIKE '%{0}%';".format(row0);
+    sql2 = "UPDATE test_lean SET url_keep = 1 WHERE url_keep IS NULL;"
     _db = sqlite3.connect(_dbfile)
     _cursor = _db.cursor()
     _cursor.execute(sql)
