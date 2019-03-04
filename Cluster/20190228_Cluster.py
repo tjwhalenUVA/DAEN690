@@ -66,8 +66,9 @@ import matplotlib.lines as mlines
 from Functions_Wilbur_Zimmermann import tokenize_only
 #%%
 # Set global path variables
-_rootPath = os.path.dirname(os.path.abspath('__file__'))
-_dbFile = r'%s/Article Collection/articles_zenodo.db' % _rootPath
+directory = os.path.dirname('__file__')
+input_file = os.path.join(directory,'..','Article Collection')
+_dbFile = os.path.join(input_file,'articles_zenodo.db')
 
 #%%
 # Set up our connection to the database
@@ -146,7 +147,7 @@ print('\nExplore Updated Data: Here we take a nuanced approach to the '
 print('\nExplore Updated Data: Removing non-alpha characters and zeros')
 
 nonAlpha = re.compile('[^a-zA-Z]+')
-resumes_df.Resumes = _df.text.replace(nonAlpha, ' ')
+_df.text = _df.text.replace(nonAlpha, ' ')
 Zero = re.compile('[0]')
 _df.text = _df.text.replace(Zero, ' ')
 
@@ -178,17 +179,17 @@ print('\nPreparing and saving histogram and bar charts of the updated resume '
 plt.rcParams['figure.figsize'] = (10, 10)
 ax1 = plt.subplot(211)
 plt.title('Token Histogram')
-plt.hist(resumes_df.token_count_updated, bins=500, color='gray')
+plt.hist(_df.token_count_updated, bins=500, color='gray')
 plt.xticks(np.arange(0, 13000, 100), rotation='vertical')
 plt.ylabel('Number of Resumes per Token Count')
 plt.setp(ax1.get_xticklabels(), fontsize=10)
 
-minTcount = resumes_df.token_count_updated.min()
-firstQTcount = resumes_df.token_count_updated.quantile(0.25)
-medTcount = resumes_df.token_count_updated.median()
-meanTcount = resumes_df.token_count_updated.mean()
-thirdQTcount = resumes_df.token_count_updated.quantile(0.75)
-maxTcount = resumes_df.token_count_updated.max()
+minTcount = _df.token_count_updated.min()
+firstQTcount = _df.token_count_updated.quantile(0.25)
+medTcount = _df.token_count_updated.median()
+meanTcount = _df.token_count_updated.mean()
+thirdQTcount = _df.token_count_updated.quantile(0.75)
+maxTcount = _df.token_count_updated.max()
 
 plt.axvline(minTcount, color='r', linestyle='--', linewidth=1)
 plt.axvline(firstQTcount, color='c', linestyle='--', linewidth=1)
@@ -214,7 +215,7 @@ plt.tight_layout()
 
 ax2 = plt.subplot(212, sharex=ax1)
 plt.title('Token Boxplot')
-plt.boxplot(resumes_df.token_count_updated, 0, 'b+', 0)
+plt.boxplot(_df.token_count_updated, 0, 'b+', 0)
 plt.xticks(rotation='vertical')
 plt.xlabel('Number of Tokens Per Resume')
 plt.yticks([])
@@ -252,8 +253,9 @@ print('Reviewing the histogram and barplot we can see that there are quite '
       'a few resumes that are way out to the right of the mean.  Lets go '
       'figure out what if any issues there are.')
 
-resumes_df.loc[resumes_df.token_count_updated 
-               == max(resumes_df.token_count_updated),'Resumes']
+_df.loc[_df.token_count_updated 
+               == max(_df.token_count_updated),'Resumes']
+
 resumes_df.Resumes[7659]
 
 # Ah now we see what the issue is...this resume should probably be removed from 
@@ -277,21 +279,21 @@ resumes_df = resumes_df.query('token_count_updated >=75')
 #%%
 # Get the number of resumes included in the corpus.
 print('\nExplore Shortened Data: The number of resumes in the updated corpus '
-      'is:',len(resumes_df))
+      'is:',len(_df))
 #%%
 print('\nExplore Shortened Data: Re-examining the number of tokens after '
       'removing resumes that are likely to contain duplicates data or '
       'resumes that are likely incomplete' )
 
 unique_tokensx2 = len(pd.value_counts(
-                      np.hstack(resumes_df.tokens_updated.values)))
+                      np.hstack(_df.tokens_updated.values)))
 
 #duration = round((time.time() - begin_time)/60, 2)
 #print('The tokenizer took {} seconds to run.'.format(duration))
 
 print('\nExplore Shortened Data: Raw token count: The total number of tokens '
       'in the raw set of resume files is: ',
-      resumes_df.token_count_updated.sum())
+      _df.token_count_updated.sum())
 
 print('\nExplore Shortened Data: Unique token count: The total number of '
       'unique tokens in the raw set of resume files is: ',unique_tokensx2)
@@ -303,17 +305,17 @@ print('\nExplore Shortened Data: Preparing and saving histogram and bar '
 plt.rcParams['figure.figsize'] = (10, 10)
 ax1 = plt.subplot(211)
 plt.title('Token Histogram')
-plt.hist(resumes_df.token_count_updated, bins=500, color='gray')
+plt.hist(_df.token_count_updated, bins=500, color='gray')
 plt.xticks(np.arange(0, 2100, 100), rotation='vertical')
 plt.ylabel('Number of Resumes per Token Count')
 plt.setp(ax1.get_xticklabels(), fontsize=10)
 
-minTcount = resumes_df.token_count_updated.min()
-firstQTcount = resumes_df.token_count_updated.quantile(0.25)
-medTcount = resumes_df.token_count_updated.median()
-meanTcount = resumes_df.token_count_updated.mean()
-thirdQTcount = resumes_df.token_count_updated.quantile(0.75)
-maxTcount = resumes_df.token_count_updated.max()
+minTcount = _df.token_count_updated.min()
+firstQTcount = _df.token_count_updated.quantile(0.25)
+medTcount = _df.token_count_updated.median()
+meanTcount = _df.token_count_updated.mean()
+thirdQTcount = _df.token_count_updated.quantile(0.75)
+maxTcount = _df.token_count_updated.max()
 
 
 plt.axvline(minTcount, color='r', linestyle='--', linewidth=1)
@@ -373,21 +375,3 @@ combined_token_count_png =\
    os.path.join(directory, '..', 'script_output',
                 '%s_ExploreData_noLongShort_token_count.png' % timeStr)
 plt.savefig(combined_token_count_png, dpi=100)
-
-#%%
-
-# Writing dataframe to a .csv file that can be read-in at a later point in
-# time. 
-timeStr = time.strftime('%Y%m%d-%H%M%S')
-
-print('\nExplore Final Data: Writing dataframe to .csv file.',
-      '%s_long_short_removed_resumes_FINAL.csv' % (timeStr) )
-
-cols_to_keep = ['FileNames','Resumes']
-resumes_df[cols_to_keep].to_csv(
-        os.path.join(output,
-                     '%s_long_short_removed_resumes_FINAL.csv' % (timeStr)), 
-                     index=False)
-#%%
-duration = round((time.time() - begin_total_time)/60, 2)
-print('\nExplore Final Data: This script ran in {} minutes.'.format(duration))
