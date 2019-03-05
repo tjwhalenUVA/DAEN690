@@ -179,7 +179,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             # Load the data from the database
             _cur.execute("SELECT ln.id, ln.bias_final, cn.text " +
                          "FROM train_lean ln, train_content cn " +
-                         "WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id AND ln.url_keep='1' AND ln.id < 100000")
+                         "WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id AND ln.url_keep='1' AND ln.id < 10000")
             _df = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text'))
             _db.close()
 
@@ -316,7 +316,6 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             print('\nFold %s' % j)
 
             # Construct the Tensorflow/keras model for a convolutional neural net
-            model = []                          # Completely clear the model (?)
             model = keras.Sequential()
             model.add(keras.layers.Embedding(input_dim=_vocabSize,
                                              output_dim=_dimensions,
@@ -336,6 +335,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             model.add(keras.layers.Dense(5, activation=_row.outputActivation))
 
             model.summary()
+
             model.compile(optimizer='adam',
                           loss=_row.lossFunction,
                           metrics=['categorical_accuracy'])

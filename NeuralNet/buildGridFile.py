@@ -41,7 +41,7 @@ flattenLayer = [True]
 
 # Number of nodes/units in the fully connected dense layer.  This is worth playing with,
 # as it seriously affects the number of features/parameters in the neural net.
-denseUnits = [50]
+denseUnits = [10, 50]
 
 # Type of activation to use for the output of the fully connected dense layer.
 denseActivation = ['relu']
@@ -50,7 +50,7 @@ denseActivation = ['relu']
 # helps with overfitting and forces nodes to "share the load" rather than having just
 # a few nodes do all the work while the rest sit around playing poker.  (0 to 1, setting
 # to zero will not include this layer in the model).
-dropoutFraction = [0]
+dropoutFraction = [0, 0.25]
 
 # Activation for the output of the model.  Since we are dealing with categorical outputs,
 # a 'softmax' activation is probably best to use.
