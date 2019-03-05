@@ -71,7 +71,9 @@ dfGrid = pd.DataFrame(list(product(dbFile, gloveFile, vocabSize, captureFraction
                                'poolSize', 'flattenLayer', 'denseUnits', 'denseActivation', 'dropoutFraction',
                                'outputActivation', 'lossFunction'])
 
-# Dump our dataframe to a CSV file, specified by a command line argument for the CSV filename.
-dfGrid.to_csv(sys.argv[1], index=False, encoding='utf-8')
-
-
+if len(sys.argv) > 1:
+    # Dump our dataframe to a CSV file, specified by a command line argument for the CSV filename.
+    dfGrid.to_csv(sys.argv[1], index=False, encoding='utf-8')
+else:
+    print('Usage:  Edit the lists of items in this python file, then run ' +
+          '01_buildGridFile.py outputfile.csv')

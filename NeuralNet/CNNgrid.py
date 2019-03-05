@@ -27,6 +27,9 @@
 #
 
 import argparse                         # package for handling command line arguments
+import tensorflow as tf
+from tensorflow import keras
+
 
 # Routine for building our model.  This routine constructs our neural net model using the arguments
 # passed to it.
@@ -34,69 +37,70 @@ import argparse                         # package for handling command line argu
 # By moving the model construction into a separate function, we also can allow the neural net model
 # to be called easily inside of a loop
 #
-# def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
-#                    _cnnFilters=50, _cnnKernel=5, _convActivation='relu',
-#                    _cnnPool=5,
-#                    _cnnFlatten=True,
-#                    _cnnDense=50, _denseActivation='relu',
-#                    _cnnDropout=None,
-#                    _outputActivation='softmax',
-#                    _summarize=True,
-#                    _optimizer='adam'):
-#
-#     # Initialize the model
-#     theModel = keras.Sequential()
-#
-#     # Add our word embedding layer.  This layer converts the word indices sent to the model into
-#     # vectors of length N, where N is the length of the GloVe word vectors.  This conversion is
-#     # done for each word in an article, resulting in a matrix of size [_padLength, N] (... maybe
-#     # transposed from that?)
-#     theModel.add(keras.layers.Embedding(input_dim=_vocabSize,
-#                                         output_dim=_dimensions,
-#                                         embeddings_initializer=keras.initializers.Constant(_embeddingMatrix),
-#                                         input_length=_padLength,
-#                                         trainable=False))
-#
-#     # Add a 1-dimensional convolution layer.  This layer moves a window of size _cnnKernel across
-#     # the input and creates an output of length _cnnFilters for each window.
-#     theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel, activation=_convActivation))
-#
-#     # Add a max pooling layer.  This layer looks at the vectors contained in a window of size _cnnPool
-#     # and outputs the vector with the greatest L2 norm.
-#     theModel.add(keras.layers.MaxPool1D(pool_size=_cnnPool))
-#
-#     # Add a flatten layer.  This layer removes reduces the output to a one-dimensional vector
-#     if _cnnFlatten:
-#         theModel.add(keras.layers.Flatten())
-#
-#     # Add a fully connected dense layer.  This layer adds a lot of nodes to the model to allow
-#     # for different features in the article to activate different groups of nodes.
-#     theModel.add(keras.layers.Dense(units=_cnnDense, activation=_denseActivation))
-#
-#     # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
-#     # during each training epoch.  Doing this prevents a small set of nodes doing all the
-#     # work while a bunch of other nodes sit around playing poker.
-#     if _cnnDropout != None:
-#         theModel.add(keras.layers.Dropout(_cnnDropout))
-#
-#     # Add our output layer.  We have 5 classes of output "left", "left-center", "least",
-#     # "right-center", and "right".  This layer converts the inputs from the dense/dropout
-#     # layer into outputs for these 5 classes, essentially predicting the article leaning.
-#     theModel.add(keras.layers.Dense(5, activation=_outputActivation))
-#
-#     # Display a summary of our model
-#     if _summarize:
-#         theModel.summary()
-#
-#     # Compile our model.  We use categorical crossentropy for the training loss function
-#     # since our predictions are multiclass.  We use categorical accuracy as our
-#     # performance metric, though we can report others as well.  The optimizer can
-#     # be any of the allowed optimizers (default is 'adam', a form of stochastic
-#     # gradient descent).
-#     theModel.compile(optimizer=_optimizer,
-#                   loss='categorical_crossentropy',
-#                   metrics=['categorical_accuracy'])
-#     return theModel
+def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
+                   _cnnFilters=50, _cnnKernel=5, _convActivation='relu',
+                   _cnnPool=5,
+                   _cnnFlatten=True,
+                   _cnnDense=50, _denseActivation='relu',
+                   _cnnDropout=0.0,
+                   _outputActivation='softmax',
+                   _lossFunction='categorical_crossentropy',
+                   _summarize=True,
+                   _optimizer='adam'):
+
+    # Initialize the model
+    theModel = keras.Sequential()
+
+    # Add our word embedding layer.  This layer converts the word indices sent to the model into
+    # vectors of length N, where N is the length of the GloVe word vectors.  This conversion is
+    # done for each word in an article, resulting in a matrix of size [_padLength, N] (... maybe
+    # transposed from that?)
+    theModel.add(keras.layers.Embedding(input_dim=_vocabSize,
+                                        output_dim=_dimensions,
+                                        embeddings_initializer=keras.initializers.Constant(_embeddingMatrix),
+                                        input_length=_padLength,
+                                        trainable=False))
+
+    # Add a 1-dimensional convolution layer.  This layer moves a window of size _cnnKernel across
+    # the input and creates an output of length _cnnFilters for each window.
+    theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel, activation=_convActivation))
+
+    # Add a max pooling layer.  This layer looks at the vectors contained in a window of size _cnnPool
+    # and outputs the vector with the greatest L2 norm.
+    theModel.add(keras.layers.MaxPool1D(pool_size=_cnnPool))
+
+    # Add a flatten layer.  This layer removes reduces the output to a one-dimensional vector
+    if _cnnFlatten:
+        theModel.add(keras.layers.Flatten())
+
+    # Add a fully connected dense layer.  This layer adds a lot of nodes to the model to allow
+    # for different features in the article to activate different groups of nodes.
+    theModel.add(keras.layers.Dense(units=_cnnDense, activation=_denseActivation))
+
+    # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
+    # during each training epoch.  Doing this prevents a small set of nodes doing all the
+    # work while a bunch of other nodes sit around playing poker.
+    if _cnnDropout > 0.0:
+        theModel.add(keras.layers.Dropout(_cnnDropout))
+
+    # Add our output layer.  We have 5 classes of output "left", "left-center", "least",
+    # "right-center", and "right".  This layer converts the inputs from the dense/dropout
+    # layer into outputs for these 5 classes, essentially predicting the article leaning.
+    theModel.add(keras.layers.Dense(5, activation=_outputActivation))
+
+    # Display a summary of our model
+    if _summarize:
+        theModel.summary()
+
+    # Compile our model.  We use categorical crossentropy for the training loss function
+    # since our predictions are multiclass.  We use categorical accuracy as our
+    # performance metric, though we can report others as well.  The optimizer can
+    # be any of the allowed optimizers (default is 'adam', a form of stochastic
+    # gradient descent).
+    theModel.compile(optimizer=_optimizer,
+                  loss='categorical_crossentropy',
+                  metrics=['categorical_accuracy'])
+    return theModel
 
 
 def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
@@ -113,7 +117,6 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
     from pandas import read_csv
 
     import tensorflow as tf
-    tf.enable_eager_execution()
     from tensorflow import keras
     import numpy as np
     from sklearn.model_selection import StratifiedKFold
@@ -179,7 +182,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             # Load the data from the database
             _cur.execute("SELECT ln.id, ln.bias_final, cn.text " +
                          "FROM train_lean ln, train_content cn " +
-                         "WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id AND ln.url_keep='1' AND ln.id < 10000")
+                         "WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id AND ln.url_keep='1'")
             _df = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text'))
             _db.close()
 
@@ -316,30 +319,43 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             print('\nFold %s' % j)
 
             # Construct the Tensorflow/keras model for a convolutional neural net
-            model = keras.Sequential()
-            model.add(keras.layers.Embedding(input_dim=_vocabSize,
-                                             output_dim=_dimensions,
-                                             embeddings_initializer=keras.initializers.Constant(_embeddingMatrix),
-                                             input_length=_padLength,
-                                             trainable=False))
-            model.add(keras.layers.Conv1D(filters=_row.convolutionFilters,
-                                          kernel_size=_row.convolutionKernel,
-                                          activation=_row.convolutionActivation))
-            model.add(keras.layers.MaxPool1D(pool_size=_row.poolSize))
-            if _row.flattenLayer:
-                model.add(keras.layers.Flatten())
-            model.add(keras.layers.Dense(units=_row.denseUnits,
-                                         activation=_row.denseActivation))
-            if _row.dropoutFraction > 0.0:
-                model.add(keras.layers.Dropout(_row.dropoutFraction))
-            model.add(keras.layers.Dense(5, activation=_row.outputActivation))
+            model = constructModel(_vocabSize=_vocabSize, _dimensions=_dimensions, _embeddingMatrix=_embeddingMatrix,
+                                   _padLength=_padLength,
+                                   _cnnFilters=_row.convolutionFilters, _cnnKernel=_row.convolutionKernel,
+                                   _convActivation=_row.convolutionActivation,
+                                   _cnnPool=_row.poolSize,
+                                   _cnnFlatten=_row.flattenLayer,
+                                   _cnnDense=_row.denseUnits,
+                                   _denseActivation=_row.denseActivation,
+                                   _cnnDropout=_row.dropoutFraction,
+                                   _outputActivation=_row.outputActivation,
+                                   _lossFunction=_row.lossFunction)
 
-            model.summary()
 
-            model.compile(optimizer='adam',
-                          loss=_row.lossFunction,
-                          metrics=['categorical_accuracy'])
-
+#            model = keras.Sequential()
+#            model.add(keras.layers.Embedding(input_dim=_vocabSize,
+#                                             output_dim=_dimensions,
+#                                             embeddings_initializer=keras.initializers.Constant(_embeddingMatrix),
+#                                             input_length=_padLength,
+#                                             trainable=False))
+#            model.add(keras.layers.Conv1D(filters=_row.convolutionFilters,
+#                                          kernel_size=_row.convolutionKernel,
+#                                          activation=_row.convolutionActivation))
+#            model.add(keras.layers.MaxPool1D(pool_size=_row.poolSize))
+#            if _row.flattenLayer:
+#                model.add(keras.layers.Flatten())
+#            model.add(keras.layers.Dense(units=_row.denseUnits,
+#                                         activation=_row.denseActivation))
+#            if _row.dropoutFraction > 0.0:
+#                model.add(keras.layers.Dropout(_row.dropoutFraction))
+#            model.add(keras.layers.Dense(5, activation=_row.outputActivation))
+#
+#            model.summary()
+#
+#            model.compile(optimizer='adam',
+#                          loss=_row.lossFunction,
+#                          metrics=['categorical_accuracy'])
+#
             # Fit the model to the data
             _history = model.fit(_articleSequencesPadded[_train],
                                  np.array([_leanVectorDict[k] for k in _leanVals[_train]]),
