@@ -118,6 +118,7 @@ print('The tsne modeler took {} minutes to run.'.format(duration))
 threshold = 0.3  # Consider altering this to understand its impact on the plot
 _idx = np.amax(X_topics, axis=1) > threshold  # idx of news that > threshold
 _topics = X_topics[_idx]
+_lean = _df['lean'][_idx]
 _FileNames = _df.id[_idx]
 _lda_doc_topic = lda_model.doc_topic_[_idx]
 
@@ -166,6 +167,13 @@ tsne_lda_df['labels_file'] = tsne_lda_df.str_topic #+ ' | ' + \
 #resumesPlus_df['labels'] = kmeans_clusters
 #resumesPlus_df['labels'] = resumesPlus_df['labels'].apply(str)
 
+# function below sets the color based on amount
+def SetColor(x):
+    if(x == 'left'): return "blue"
+    elif(x == 'left-center'): return "lightblue"
+    elif(x == 'least'): return "lightgray"
+    elif(x == 'right-center'): return "orangered"
+    elif(x == 'right'): return "red"
 
 hoverTxt_ar = tsne_lda_df['labels_file']
 
@@ -174,12 +182,7 @@ hoverTxt_ar = tsne_lda_df['labels_file']
 trace1 =\
     go.Scatter3d(x=x, y=y, z=z,
                  mode='markers',
-                 marker=dict(size=3, color=colormap[_lda_keys],
-                             line=dict(
-                                       color='rgb(0,0,0)',
-                                       width=0.2),
-                             opacity=1,),
-                 text=hoverTxt_ar)
+                 marker = dict(color=list(map(SetColor, _lean))))
 
 data = [trace1]
 layout = go.Layout(
@@ -202,25 +205,25 @@ plotly.offline.plot(fig)
 # This code is from Ahmed Besbe's website.
 # It currently does not work.
 
-resumes_df['tokens'] = resumes_df.Resumes.map(tokenize_only)
-tsne_lda_df['len_docs'] = resumes_df['tokens'].map(len)
+# resumes_df['tokens'] = resumes_df.Resumes.map(tokenize_only)
+# tsne_lda_df['len_docs'] = resumes_df['tokens'].map(len)
 
 
-def prepareLDAData():
-    data = {
-        'vocab': vocab,
-        'doc_topic_dists': _lda_doc_topic,
-        'doc_lengths': list(tsne_lda_df['len_docs']),
-        'term_frequency': cvectorizer.vocabulary_,
-        'topic_term_dists': lda_model.components_
-    }
-    return data
+# def prepareLDAData():
+#     data = {
+#         'vocab': vocab,
+#         'doc_topic_dists': _lda_doc_topic,
+#         'doc_lengths': list(tsne_lda_df['len_docs']),
+#         'term_frequency': cvectorizer.vocabulary_,
+#         'topic_term_dists': lda_model.components_
+#     }
+#     return data
 
 
-ldadata = prepareLDAData()
+# ldadata = prepareLDAData()
 
-import pyLDAvis
+# import pyLDAvis
 
-prepared_data = pyLDAvis.prepare(**ldadata)
+# prepared_data = pyLDAvis.prepare(**ldadata)
 
-pyLDAvis.save_html(prepared_data, './pyldadavis.html')
+# pyLDAvis.save_html(prepared_data, './pyldadavis.html')
