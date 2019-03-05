@@ -41,6 +41,7 @@ import lda
 import time
 import logging
 import numpy as np
+import sqlite3
 import pandas as pd
 from sklearn.manifold import TSNE
 from Functions_Wilbur_Zimmermann import tokenize_only
@@ -94,7 +95,7 @@ start_time = time.strftime('%H:%M:%S')
 print('\nStart time: {}  (should take about 5 minutes to run)'
       .format(start_time))
 
-n_topics = 25
+n_topics = 5
 n_iter = 5
 lda_model = lda.LDA(n_topics=n_topics, n_iter=n_iter, random_state=1)
 X_topics = lda_model.fit_transform(cvz)
