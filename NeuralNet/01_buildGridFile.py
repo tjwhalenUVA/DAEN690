@@ -41,7 +41,7 @@ flattenLayer = [True]
 
 # Number of nodes/units in the fully connected dense layer.  This is worth playing with,
 # as it seriously affects the number of features/parameters in the neural net.
-denseUnits = [50]
+denseUnits = [10, 50]
 
 # Type of activation to use for the output of the fully connected dense layer.
 denseActivation = ['relu']
@@ -50,7 +50,7 @@ denseActivation = ['relu']
 # helps with overfitting and forces nodes to "share the load" rather than having just
 # a few nodes do all the work while the rest sit around playing poker.  (0 to 1, setting
 # to zero will not include this layer in the model).
-dropoutFraction = [0]
+dropoutFraction = [0, 0.25]
 
 # Activation for the output of the model.  Since we are dealing with categorical outputs,
 # a 'softmax' activation is probably best to use.
@@ -71,7 +71,9 @@ dfGrid = pd.DataFrame(list(product(dbFile, gloveFile, vocabSize, captureFraction
                                'poolSize', 'flattenLayer', 'denseUnits', 'denseActivation', 'dropoutFraction',
                                'outputActivation', 'lossFunction'])
 
-# Dump our dataframe to a CSV file, specified by a command line argument for the CSV filename.
-dfGrid.to_csv(sys.argv[1], index=False, encoding='utf-8')
-
-
+if len(sys.argv) > 1:
+    # Dump our dataframe to a CSV file, specified by a command line argument for the CSV filename.
+    dfGrid.to_csv(sys.argv[1], index=False, encoding='utf-8')
+else:
+    print('Usage:  Edit the lists of items in this python file, then run ' +
+          '01_buildGridFile.py outputfile.csv')
