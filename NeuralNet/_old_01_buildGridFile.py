@@ -13,31 +13,31 @@ import sys
 
 # Files to use for each run
 dbFile = ['./data/articles_zenodo.db']
-gloveFile = ['./data/glove.6B.50d.txt']   #, './data/glove.6B.100d.txt']
+gloveFile = ['./data/glove.6B.50d.txt']
 
 # Number of words to include in our vocabulary (from 1 to who knows how large?)
-vocabSize = [1000, 10000, 25000, 50000]
+vocabSize = [250, 25000]
 
 # Fraction of articles whose length we wish to capture completely.  Articles longer than
 # this length will be truncated.  Shorter articles get post-padded with zeros. (0 to 1)
-captureFraction = [0.25, 0.50, 0.95, 0.9999]
+captureFraction = [0.05, 0.95]
 
 # Number of convolution filters to use.  Notionally set to match the number of dimensions
 # in the GloVe word vector file being used, but it can be different.
-convolutionFilters = [5, 10, 25, 50]
+convolutionFilters = [10, 50]
 
 # Size of the convolution "window" to slide across the words in the article.
-convolutionKernel = [5, 15]
+convolutionKernel = [5]
 
 # Type of activation to use for the output of the convolution operation.  'relu' is a
 # commonly used activation for NLP.
 convolutionActivation = ['relu']
 
 # Size of the pooling window to pass across the convolved output.
-poolSize = [2, 5, 10]
+poolSize = [5]
 
 # Whether to have a flattening layer or not (True, False)
-flattenLayer = [True]    #, False]
+flattenLayer = [True]
 
 # Number of nodes/units in the fully connected dense layer.  This is worth playing with,
 # as it seriously affects the number of features/parameters in the neural net.
@@ -50,7 +50,7 @@ denseActivation = ['relu']
 # helps with overfitting and forces nodes to "share the load" rather than having just
 # a few nodes do all the work while the rest sit around playing poker.  (0 to 1, setting
 # to zero will not include this layer in the model).
-dropoutFraction = [0, 0.25, 0.50, 0.75]
+dropoutFraction = [0, 0.25]
 
 # Activation for the output of the model.  Since we are dealing with categorical outputs,
 # a 'softmax' activation is probably best to use.
@@ -70,9 +70,6 @@ dfGrid = pd.DataFrame(list(product(dbFile, gloveFile, vocabSize, captureFraction
                                'convolutionFilters', 'convolutionKernel', 'convolutionActivation',
                                'poolSize', 'flattenLayer', 'denseUnits', 'denseActivation', 'dropoutFraction',
                                'outputActivation', 'lossFunction'])
-
-# Add a unique ID column to the rows so that we can identify each one later.
-dfGrid.insert(0, 'id', range(len(dfGrid)))
 
 if len(sys.argv) > 1:
     # Dump our dataframe to a CSV file, specified by a command line argument for the CSV filename.
