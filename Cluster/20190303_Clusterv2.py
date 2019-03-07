@@ -49,6 +49,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 # Plotly plotting packages
 import plotly
 import plotly.graph_objs as go
+from nltk.corpus import stopwords
 
 # %%
 # Set global path variables
@@ -71,6 +72,19 @@ _cursor.execute("SELECT ln.id, ln.bias_final, cn.text " +
                 "WHERE cn.`published-at` >= '2018-01-01' AND ln.id == cn.id AND ln.url_keep='1'")
 _df = pd.DataFrame(_cursor.fetchall(), columns=('id', 'lean', 'text'))
 _db.close()
+# %%
+
+nonAlpha = re.compile('[^a-zA-Z]+')
+_df.text = _df.text.replace(nonAlpha, ' ')
+
+
+cachedStopWords = stopwords.words('english')
+_df.text = _df.text.apply(
+                          lambda x: (' '.join([word for word in x.split() 
+                          if word not in cachedStopWords])))
+_df.text = _df.text.str.lower()
+
+
 # %%
 
 logging.getLogger("lda").setLevel(logging.WARNING)

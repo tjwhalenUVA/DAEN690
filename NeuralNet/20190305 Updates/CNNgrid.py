@@ -138,8 +138,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
 
     # Load our grid search CSV file into a pandas dataframe
     _dfGrid = read_csv(_gridFile, index_col=False,
-                       dtype={'id': int,
-                              'dbFile': str,
+                       dtype={'dbFile': str,
                               'gloveFile': str,
                               'vocabSize': int,
                               'captureFraction': float,
@@ -155,7 +154,6 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
                               'lossFunction': str})
 
     # Start the grid search
-    _idBase = min(_dfGrid.id)
     _maxRow = None
     _maxAcc = 0.0
     _minRow = None
@@ -184,7 +182,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             # Load the data from the database
             _cur.execute("SELECT ln.id, ln.bias_final, cn.text " +
                          "FROM train_lean ln, train_content cn " +
-                         "WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id AND ln.url_keep='1' AND ln.id <= 10000")
+                         "WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id AND ln.url_keep='1'")
             _df = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text'))
             _db.close()
 
@@ -390,10 +388,6 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             _minEpoch = np.argmin(np.mean(np.matrix(_fval_loss), axis=0).tolist()[0])
             _minRow = _row
 
-    print('\n\n')
-    print('Parameter Combinations Processed:')
-    for _row in _dfGrid.itertuples():
-        print(_row)
     print('\n\nResults:')
     print('Greatest Accuracy:  %s' % _maxAcc)
     print('Number of Epochs:   %s' % _maxEpoch)
@@ -406,32 +400,20 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
     print(_minRow)
     print('\n')
     print('Training Accuracies:')
-    j = _idBase
     for junk in _acc:
-        print(j, junk)
-        j += 1
+        print(junk)
     print('\n')
     print('Validation Accuracies:')
-    j = _idBase
     for junk in _val_acc:
-        print(j, junk)
-        j += 1
+        print(junk)
     print('\n')
     print('Training Loss:')
-    j = _idBase
     for junk in _loss:
-        print(j, junk)
-        j += 1
+        print(junk)
     print('\n')
     print('Validation Loss:')
-    j = _idBase
     for junk in _val_loss:
-        print(j, junk)
-        j += 1
-    print('\n')
-    print('Parameter Combinations Processed:')
-    for _row in _dfGrid.itertuples():
-        print(_row)
+        print(junk)
 
 
 if __name__ == '__main__':
