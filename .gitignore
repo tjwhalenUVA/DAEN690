@@ -15,4 +15,5 @@ EDA/*.html
 *.pyc
 #ignore GloVe word embedding text files
 glove*.txt
-
+#Ignore spark log file
+logs/log4j.spark.log
