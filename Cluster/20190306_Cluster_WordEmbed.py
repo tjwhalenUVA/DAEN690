@@ -62,7 +62,7 @@ _df.text = _df.text.apply(
                           if word not in cachedStopWords])))
 
 #%%
- from nltk.tokenize import word_tokenize
+from nltk.tokenize import word_tokenize
 test1 = []
 for i in _df.text:
     tokens = word_tokenize(i)
