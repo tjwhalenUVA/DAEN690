@@ -56,43 +56,23 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
                                         embeddings_initializer=keras.initializers.Constant(_embeddingMatrix),
                                         input_length=_padLength,
                                         trainable=False))
-    print('adding RNN layer')
+
     # Add a simple RNN layer.  This layer allows one to look back at previous inputs, essentially
     # providing context rather than just simple individual words.
     theModel.add(keras.layers.SimpleRNN(units=_rnnUnits, activation=_rnnActivation,
                                         dropout=_rnnDropout, recurrent_dropout=_rnnRecDropout,
+                                        return_sequences=True))
+
+    # Add a second simple RNN layer.  This layer also looks back at previous inputs, but instead of
+    # outputting the sequence results, it outputs only the final result to the dense layer to follow.
+    theModel.add(keras.layers.SimpleRNN(units=_rnnUnits, activation=_rnnActivation,
+                                        dropout=_rnnDropout, recurrent_dropout=_rnnRecDropout,
                                         return_sequences=False))
 
-    # Add a time distributed dense layer
+
+    # Add a dense layer
     theModel.add(keras.layers.Dense(units=5, activation=_outputActivation))
 
-#    # Add a 1-dimensional convolution layer.  This layer moves a window of size _cnnKernel across
-#    # the input and creates an output of length _cnnFilters for each window.
-#    theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel, activation=_convActivation))
-#
-#    # Add a max pooling layer.  This layer looks at the vectors contained in a window of size _cnnPool
-#    # and outputs the vector with the greatest L2 norm.
-#    theModel.add(keras.layers.MaxPool1D(pool_size=_cnnPool))
-#
-#    # Add a flatten layer.  This layer removes reduces the output to a one-dimensional vector
-#    if _cnnFlatten:
-#        theModel.add(keras.layers.Flatten())
-#
-#    # Add a fully connected dense layer.  This layer adds a lot of nodes to the model to allow
-#    # for different features in the article to activate different groups of nodes.
-#    theModel.add(keras.layers.Dense(units=_cnnDense, activation=_denseActivation))
-#
-#    # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
-#    # during each training epoch.  Doing this prevents a small set of nodes doing all the
-#    # work while a bunch of other nodes sit around playing poker.
-#    if _cnnDropout > 0.0:
-#        theModel.add(keras.layers.Dropout(_cnnDropout))
-#
-#    # Add our output layer.  We have 5 classes of output "left", "left-center", "least",
-#    # "right-center", and "right".  This layer converts the inputs from the dense/dropout
-#    # layer into outputs for these 5 classes, essentially predicting the article leaning.
-#    theModel.add(keras.layers.Dense(5, activation=_outputActivation))
-#
 #    # Display a summary of our model
     if _summarize:
         theModel.summary()

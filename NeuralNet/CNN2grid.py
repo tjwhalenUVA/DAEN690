@@ -69,6 +69,11 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
     # and outputs the vector with the greatest L2 norm.
     theModel.add(keras.layers.MaxPool1D(pool_size=_cnnPool))
 
+    # Add a second 1-dimensional convolution layer and pooling layer.
+    theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel, activation=_convActivation))
+    theModel.add(keras.layers.MaxPool1D(pool_size=_cnnPool))
+
+
     # Add a flatten layer.  This layer removes reduces the output to a one-dimensional vector
     if _cnnFlatten:
         theModel.add(keras.layers.Flatten())
@@ -185,18 +190,9 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             _cur = _db.cursor()
 
             # Load the data from the database
-            _command = "SELECT cn.id, ln.bias_final, cn.text " + \
-                       "FROM train_content cn, train_lean ln " + \
-                       "WHERE (cn.`published-at` IS NOT NULL) AND" + \
-                             "(cn.`published-at` >= '2009-01-01') AND " + \
-                             "(cn.id == ln.id) AND " + \
-                             "(ln.url_keep == 1) AND " + \
-                             "(cn.id NOT IN (SELECT a.id " + \
-                                            "FROM train_content a, train_content b " + \
-                                            "WHERE (a.id == b.id) AND " + \
-                                                  "(a.text == b.text)) AND " + \
-                             "(cn.id < 10000))"
-            _cur.execute(_command)
+            _cur.execute("SELECT ln.id, ln.bias_final, cn.text " +
+                         "FROM train_lean ln, train_content cn " +
+                         "WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id AND ln.url_keep='1' AND ln.id <= 10000")
             _df = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text'))
             _db.close()
 
