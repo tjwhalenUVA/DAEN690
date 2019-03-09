@@ -17,3 +17,8 @@ EDA/*.html
 glove*.txt
 #Ignore spark log file
 logs/log4j.spark.log
+#ignore cnn grid search result files (too large)
+cnnGridSearch_gpu*.txt
+#ignore raw results files from grid searches
+NeuralNet/results/cnnGridSearchResults/raw/*
+
