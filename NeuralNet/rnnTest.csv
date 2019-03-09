@@ -1,0 +1,2 @@
+id,dbFile,gloveFile,vocabSize,captureFraction,rnnUnits,rnnActivation,rnnDropout,rnnRecDropou,outputActivation,lossFunction
+0,./data/articles_zenodo.db,./data/glove.6B.50d.txt,10000,0.95,50,relu,0.0,0.0,softmax,categorical_crossentropy

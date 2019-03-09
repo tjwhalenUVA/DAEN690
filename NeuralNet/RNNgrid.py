@@ -3,13 +3,13 @@
 #
 # Author:  Paul M. Brinegar, II
 #
-# Date Created:  20190301
+# Date Created:  20190306
 #
-# CNNgrid.py - Code for running a CNN (Convolutional Neural Net) with grid search
+# RNNgrid.py - Code for running an RNN (Recurrent Neural Net) with grid search
 #
 # This code should extract the article ID, leaning, and text from our SQLite database,
 # convert the text for each article into a series of embedded word vectors (padding
-# as necessary), and feed the results into a convolutional neural net.  We will be using
+# as necessary), and feed the results into a recurrent neural net.  We will be using
 # the GloVe dataset as our source for word embedding vectors.
 #
 # We use a grid search with various parameters.  Apparently it is possible to wrap
@@ -38,11 +38,7 @@ from tensorflow import keras
 # to be called easily inside of a loop
 #
 def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
-                   _cnnFilters=50, _cnnKernel=5, _convActivation='relu',
-                   _cnnPool=5,
-                   _cnnFlatten=True,
-                   _cnnDense=50, _denseActivation='relu',
-                   _cnnDropout=0.0,
+                   _rnnUnits=50, _rnnActivation='relu', _rnnDropout=0.0, _rnnRecDropout=0.0,
                    _outputActivation='softmax',
                    _lossFunction='categorical_crossentropy',
                    _summarize=True,
@@ -60,35 +56,44 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
                                         embeddings_initializer=keras.initializers.Constant(_embeddingMatrix),
                                         input_length=_padLength,
                                         trainable=False))
+    print('adding RNN layer')
+    # Add a simple RNN layer.  This layer allows one to look back at previous inputs, essentially
+    # providing context rather than just simple individual words.
+    theModel.add(keras.layers.SimpleRNN(units=_rnnUnits, activation=_rnnActivation,
+                                        dropout=_rnnDropout, recurrent_dropout=_rnnRecDropout,
+                                        return_sequences=False))
 
-    # Add a 1-dimensional convolution layer.  This layer moves a window of size _cnnKernel across
-    # the input and creates an output of length _cnnFilters for each window.
-    theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel, activation=_convActivation))
+    # Add a time distributed dense layer
+    theModel.add(keras.layers.Dense(units=5, activation=_outputActivation))
 
-    # Add a max pooling layer.  This layer looks at the vectors contained in a window of size _cnnPool
-    # and outputs the vector with the greatest L2 norm.
-    theModel.add(keras.layers.MaxPool1D(pool_size=_cnnPool))
-
-    # Add a flatten layer.  This layer removes reduces the output to a one-dimensional vector
-    if _cnnFlatten:
-        theModel.add(keras.layers.Flatten())
-
-    # Add a fully connected dense layer.  This layer adds a lot of nodes to the model to allow
-    # for different features in the article to activate different groups of nodes.
-    theModel.add(keras.layers.Dense(units=_cnnDense, activation=_denseActivation))
-
-    # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
-    # during each training epoch.  Doing this prevents a small set of nodes doing all the
-    # work while a bunch of other nodes sit around playing poker.
-    if _cnnDropout > 0.0:
-        theModel.add(keras.layers.Dropout(_cnnDropout))
-
-    # Add our output layer.  We have 5 classes of output "left", "left-center", "least",
-    # "right-center", and "right".  This layer converts the inputs from the dense/dropout
-    # layer into outputs for these 5 classes, essentially predicting the article leaning.
-    theModel.add(keras.layers.Dense(5, activation=_outputActivation))
-
-    # Display a summary of our model
+#    # Add a 1-dimensional convolution layer.  This layer moves a window of size _cnnKernel across
+#    # the input and creates an output of length _cnnFilters for each window.
+#    theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel, activation=_convActivation))
+#
+#    # Add a max pooling layer.  This layer looks at the vectors contained in a window of size _cnnPool
+#    # and outputs the vector with the greatest L2 norm.
+#    theModel.add(keras.layers.MaxPool1D(pool_size=_cnnPool))
+#
+#    # Add a flatten layer.  This layer removes reduces the output to a one-dimensional vector
+#    if _cnnFlatten:
+#        theModel.add(keras.layers.Flatten())
+#
+#    # Add a fully connected dense layer.  This layer adds a lot of nodes to the model to allow
+#    # for different features in the article to activate different groups of nodes.
+#    theModel.add(keras.layers.Dense(units=_cnnDense, activation=_denseActivation))
+#
+#    # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
+#    # during each training epoch.  Doing this prevents a small set of nodes doing all the
+#    # work while a bunch of other nodes sit around playing poker.
+#    if _cnnDropout > 0.0:
+#        theModel.add(keras.layers.Dropout(_cnnDropout))
+#
+#    # Add our output layer.  We have 5 classes of output "left", "left-center", "least",
+#    # "right-center", and "right".  This layer converts the inputs from the dense/dropout
+#    # layer into outputs for these 5 classes, essentially predicting the article leaning.
+#    theModel.add(keras.layers.Dense(5, activation=_outputActivation))
+#
+#    # Display a summary of our model
     if _summarize:
         theModel.summary()
 
@@ -103,7 +108,7 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
     return theModel
 
 
-def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
+def main(_gridFile='./NeuralNet/rnnTest.csv', _numFolds=2, _epochs=2, _verbose=1, _GPUid=None):
     #
     # Import all the packages!
     print('Importing packages')
@@ -146,14 +151,10 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
                               'gloveFile': str,
                               'vocabSize': int,
                               'captureFraction': float,
-                              'convolutionFilters': int,
-                              'convolutionKernel': int,
-                              'convolutionActivation': str,
-                              'poolSize': int,
-                              'flattenLayer': bool,
-                              'denseUnits': int,
-                              'denseActivation': str,
-                              'dropoutFraction': float,
+                              'rnnUnits': int,
+                              'rnnActivation': str,
+                              'rnnDropout': float,
+                              'rnnRecDropout': float,
                               'outputActivation': str,
                               'lossFunction': str})
 
@@ -245,7 +246,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             # the articles in their entirety.  Padding will be performed at the end of the article.
             print('Performing article padding/truncation to make all articles a uniform length')
             _padLength = np.sort(np.array([len(x) for x in _articleSequences]))[int(np.ceil(
-                len(_articleSequences) * _row.captureFraction))]
+                                 len(_articleSequences) * _row.captureFraction))]
             _articleSequencesPadded = keras.preprocessing.sequence.pad_sequences(_articleSequences,
                                                                                  maxlen=_padLength,
                                                                                  padding='post')
@@ -324,17 +325,19 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             print('\nFold %s' % j)
 
             # Construct the Tensorflow/keras model for a convolutional neural net
-            model = constructModel(_vocabSize=_vocabSize, _dimensions=_dimensions, _embeddingMatrix=_embeddingMatrix,
-                                   _padLength=_padLength,
-                                   _cnnFilters=_row.convolutionFilters, _cnnKernel=_row.convolutionKernel,
-                                   _convActivation=_row.convolutionActivation,
-                                   _cnnPool=_row.poolSize,
-                                   _cnnFlatten=_row.flattenLayer,
-                                   _cnnDense=_row.denseUnits,
-                                   _denseActivation=_row.denseActivation,
-                                   _cnnDropout=_row.dropoutFraction,
-                                   _outputActivation=_row.outputActivation,
-                                   _lossFunction=_row.lossFunction)
+            model = constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
+                                   _rnnUnits=50, _rnnActivation='tanh', _rnnDropout=0.0, _rnnRecDropout=0.0)
+
+            # # We are going to use variable length articles, so in this case we cannot use model.fit().
+            # # Instead, we need to use model.train_on_batch().
+            # for j in range(_epochs):
+            #     for n, _article in enumerate(_articleSequences):
+            #         _leanVal = np.array(_leanVectorDict[_leanVals[n]])[np.newaxis, :]
+            #         _article = np.array(_article)[np.newaxis, :]
+            #
+            #         model.train_on_batch(_article, _leanVal)
+
+
 
             # Fit the model to the data
             _history = model.fit(_articleSequencesPadded[_train],
