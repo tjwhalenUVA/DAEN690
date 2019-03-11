@@ -21,4 +21,5 @@ logs/log4j.spark.log
 cnnGridSearch_gpu*.txt
 #ignore raw results files from grid searches
 NeuralNet/results/cnnGridSearchResults/raw/*
-
+#ignore all of the grid search input csv files
+NeuralNet/*gridTest*.csv

@@ -3,13 +3,13 @@
 #
 # Author:  Paul M. Brinegar, II
 #
-# Date Created:  20190306
+# Date Created:  20190301
 #
-# RNNgrid.py - Code for running an RNN (Recurrent Neural Net) with grid search
+# CNNdeepgrid.py - Code for running a deep CNN (Convolutional Neural Net) with grid search
 #
 # This code should extract the article ID, leaning, and text from our SQLite database,
 # convert the text for each article into a series of embedded word vectors (padding
-# as necessary), and feed the results into a recurrent neural net.  We will be using
+# as necessary), and feed the results into a convolutional neural net.  We will be using
 # the GloVe dataset as our source for word embedding vectors.
 #
 # We use a grid search with various parameters.  Apparently it is possible to wrap
@@ -38,7 +38,11 @@ from tensorflow import keras
 # to be called easily inside of a loop
 #
 def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
-                   _rnnUnits=50, _rnnActivation='relu', _rnnDropout=0.0, _rnnRecDropout=0.0,
+                   _cnnFilters=50, _cnnKernel=5, _convActivation='relu',
+                   _cnnPool=5,
+                   _cnnFlatten=True,
+                   _cnnDense=50, _denseActivation='relu',
+                   _cnnDropout=0.0,
                    _outputActivation='softmax',
                    _lossFunction='categorical_crossentropy',
                    _summarize=True,
@@ -57,23 +61,58 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
                                         input_length=_padLength,
                                         trainable=False))
 
-    # Add a simple RNN layer.  This layer allows one to look back at previous inputs, essentially
-    # providing context rather than just simple individual words.
-    theModel.add(keras.layers.SimpleRNN(units=_rnnUnits, activation=_rnnActivation,
-                                        dropout=_rnnDropout, recurrent_dropout=_rnnRecDropout,
-                                        return_sequences=True))
+    # Add a 1-dimensional convolution layer.  This layer moves a window of size _cnnKernel across
+    # the input and creates an output of length _cnnFilters for each window.
+    theModel.add(keras.layers.Conv1D(filters=10, kernel_size=5, activation='relu'))
 
-    # Add a second simple RNN layer.  This layer also looks back at previous inputs, but instead of
-    # outputting the sequence results, it outputs only the final result to the dense layer to follow.
-    theModel.add(keras.layers.SimpleRNN(units=_rnnUnits, activation=_rnnActivation,
-                                        dropout=_rnnDropout, recurrent_dropout=_rnnRecDropout,
-                                        return_sequences=False))
+    # Add a max pooling layer.  This layer looks at the vectors contained in a window of size _cnnPool
+    # and outputs the vector with the greatest L2 norm.
+    theModel.add(keras.layers.MaxPool1D(pool_size=2))
+
+    # Add a 1-dimensional convolution layer.  This layer moves a window of size _cnnKernel across
+    # the input and creates an output of length _cnnFilters for each window.
+    theModel.add(keras.layers.Conv1D(filters=40, kernel_size=3, activation='relu'))
+
+    # Add a max pooling layer.  This layer looks at the vectors contained in a window of size _cnnPool
+    # and outputs the vector with the greatest L2 norm.
+    theModel.add(keras.layers.MaxPool1D(pool_size=2))
+
+    # Add a 1-dimensional convolution layer.  This layer moves a window of size _cnnKernel across
+    # the input and creates an output of length _cnnFilters for each window.
+    theModel.add(keras.layers.Conv1D(filters=100, kernel_size=5, activation='relu'))
+
+    # Add a max pooling layer.  This layer looks at the vectors contained in a window of size _cnnPool
+    # and outputs the vector with the greatest L2 norm.
+    theModel.add(keras.layers.MaxPool1D(pool_size=2))
+
+    # Add a 1-dimensional convolution layer.  This layer moves a window of size _cnnKernel across
+    # the input and creates an output of length _cnnFilters for each window.
+    theModel.add(keras.layers.Conv1D(filters=400, kernel_size=5, activation='relu'))
+
+    # Add a max pooling layer.  This layer looks at the vectors contained in a window of size _cnnPool
+    # and outputs the vector with the greatest L2 norm.
+    theModel.add(keras.layers.MaxPool1D(pool_size=2))
 
 
-    # Add a dense layer
-    theModel.add(keras.layers.Dense(units=5, activation=_outputActivation))
+    # Add a flatten layer.  This layer removes reduces the output to a one-dimensional vector
+    theModel.add(keras.layers.Flatten())
 
-#    # Display a summary of our model
+    # Add a fully connected dense layer.  This layer adds a lot of nodes to the model to allow
+    # for different features in the article to activate different groups of nodes.
+    theModel.add(keras.layers.Dense(units=50, activation='relu'))
+
+    # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
+    # during each training epoch.  Doing this prevents a small set of nodes doing all the
+    # work while a bunch of other nodes sit around playing poker.
+    if _cnnDropout > 0.0:
+        theModel.add(keras.layers.Dropout(_cnnDropout))
+
+    # Add our output layer.  We have 5 classes of output "left", "left-center", "least",
+    # "right-center", and "right".  This layer converts the inputs from the dense/dropout
+    # layer into outputs for these 5 classes, essentially predicting the article leaning.
+    theModel.add(keras.layers.Dense(5, activation=_outputActivation))
+
+    # Display a summary of our model
     if _summarize:
         theModel.summary()
 
@@ -88,7 +127,7 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
     return theModel
 
 
-def main(_gridFile='./NeuralNet/rnnTest.csv', _numFolds=2, _epochs=2, _verbose=1, _GPUid=None):
+def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
     #
     # Import all the packages!
     print('Importing packages')
@@ -131,10 +170,14 @@ def main(_gridFile='./NeuralNet/rnnTest.csv', _numFolds=2, _epochs=2, _verbose=1
                               'gloveFile': str,
                               'vocabSize': int,
                               'captureFraction': float,
-                              'rnnUnits': int,
-                              'rnnActivation': str,
-                              'rnnDropout': float,
-                              'rnnRecDropout': float,
+                              'convolutionFilters': int,
+                              'convolutionKernel': int,
+                              'convolutionActivation': str,
+                              'poolSize': int,
+                              'flattenLayer': bool,
+                              'denseUnits': int,
+                              'denseActivation': str,
+                              'dropoutFraction': float,
                               'outputActivation': str,
                               'lossFunction': str})
 
@@ -168,7 +211,7 @@ def main(_gridFile='./NeuralNet/rnnTest.csv', _numFolds=2, _epochs=2, _verbose=1
             # Load the data from the database
             _command = "SELECT cn.id, ln.bias_final, cn.text " + \
                        "FROM train_content cn, train_lean ln " + \
-                       "WHERE (cn.id < 400000) AND " + \
+                       "WHERE (cn.id < 100000) AND " + \
                        "(cn.`published-at` >= '2009-01-01') AND " + \
                              "(cn.id == ln.id) AND " + \
                              "(ln.url_keep == 1) AND " + \
@@ -176,6 +219,7 @@ def main(_gridFile='./NeuralNet/rnnTest.csv', _numFolds=2, _epochs=2, _verbose=1
                                             "FROM train_content a, train_content b " + \
                                             "WHERE (a.id < b.id) AND " + \
                                                   "(a.text == b.text)));"
+
 
             _cur.execute(_command)
             _df = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text'))
@@ -236,7 +280,7 @@ def main(_gridFile='./NeuralNet/rnnTest.csv', _numFolds=2, _epochs=2, _verbose=1
             # the articles in their entirety.  Padding will be performed at the end of the article.
             print('Performing article padding/truncation to make all articles a uniform length')
             _padLength = np.sort(np.array([len(x) for x in _articleSequences]))[int(np.ceil(
-                                 len(_articleSequences) * _row.captureFraction))]
+                len(_articleSequences) * _row.captureFraction))]
             _articleSequencesPadded = keras.preprocessing.sequence.pad_sequences(_articleSequences,
                                                                                  maxlen=_padLength,
                                                                                  padding='post')
@@ -300,12 +344,12 @@ def main(_gridFile='./NeuralNet/rnnTest.csv', _numFolds=2, _epochs=2, _verbose=1
         # class in both the training and test/validation set.  Thus we don't end
         # up with a horribly imbalanced set as part of our cross validation.
         #
+        foldFlag = False
         if _numFolds == 0:
-            _foldFlag = False
             _numFolds = 10
             print('Performing 90/10 split training and validation, %s epochs' % _epochs)
         else:
-            _foldFlag = True
+            foldFlag = True
             print('Performing %s fold cross validation, %s epochs per fold' % (_numFolds, _epochs))
         _kfold = StratifiedKFold(n_splits=_numFolds, shuffle=True)
 
@@ -318,23 +362,21 @@ def main(_gridFile='./NeuralNet/rnnTest.csv', _numFolds=2, _epochs=2, _verbose=1
         # Perform the K-fold cross validation
         j = 1
         for _train, _val in _kfold.split(_articleSequencesPadded, _leanVals):
-            if _foldFlag:
+            if foldFlag:
                 print('\nFold %s' % j)
 
                 # Construct the Tensorflow/keras model for a convolutional neural net
-                model = constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
-                                       _rnnUnits=50, _rnnActivation='tanh', _rnnDropout=0.0, _rnnRecDropout=0.0)
-
-                # # We are going to use variable length articles, so in this case we cannot use model.fit().
-                # # Instead, we need to use model.train_on_batch().
-                # for j in range(_epochs):
-                #     for n, _article in enumerate(_articleSequences):
-                #         _leanVal = np.array(_leanVectorDict[_leanVals[n]])[np.newaxis, :]
-                #         _article = np.array(_article)[np.newaxis, :]
-                #
-                #         model.train_on_batch(_article, _leanVal)
-
-
+                model = constructModel(_vocabSize=_vocabSize, _dimensions=_dimensions, _embeddingMatrix=_embeddingMatrix,
+                                       _padLength=_padLength,
+                                       _cnnFilters=_row.convolutionFilters, _cnnKernel=_row.convolutionKernel,
+                                       _convActivation=_row.convolutionActivation,
+                                       _cnnPool=_row.poolSize,
+                                       _cnnFlatten=_row.flattenLayer,
+                                       _cnnDense=_row.denseUnits,
+                                       _denseActivation=_row.denseActivation,
+                                       _cnnDropout=_row.dropoutFraction,
+                                       _outputActivation=_row.outputActivation,
+                                       _lossFunction=_row.lossFunction)
 
                 # Fit the model to the data
                 _history = model.fit(_articleSequencesPadded[_train],
@@ -343,7 +385,6 @@ def main(_gridFile='./NeuralNet/rnnTest.csv', _numFolds=2, _epochs=2, _verbose=1
                                      validation_data=(_articleSequencesPadded[_val],
                                                       np.array([_leanVectorDict[k] for k in _leanVals[_val]])),
                                      verbose=_verbose)
-
                 _historyDict = _history.history
                 _facc.append(_historyDict['categorical_accuracy'])
                 _fval_acc.append(_historyDict['val_categorical_accuracy'])
@@ -354,19 +395,17 @@ def main(_gridFile='./NeuralNet/rnnTest.csv', _numFolds=2, _epochs=2, _verbose=1
                 if j == 1:
                     print('Training and Validating Model')
                     # Construct the Tensorflow/keras model for a convolutional neural net
-                    model = constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
-                                           _rnnUnits=50, _rnnActivation='relu', _rnnDropout=0.0, _rnnRecDropout=0.0)
-
-                    # # We are going to use variable length articles, so in this case we cannot use model.fit().
-                    # # Instead, we need to use model.train_on_batch().
-                    # for j in range(_epochs):
-                    #     for n, _article in enumerate(_articleSequences):
-                    #         _leanVal = np.array(_leanVectorDict[_leanVals[n]])[np.newaxis, :]
-                    #         _article = np.array(_article)[np.newaxis, :]
-                    #
-                    #         model.train_on_batch(_article, _leanVal)
-
-
+                    model = constructModel(_vocabSize=_vocabSize, _dimensions=_dimensions, _embeddingMatrix=_embeddingMatrix,
+                                           _padLength=_padLength,
+                                           _cnnFilters=_row.convolutionFilters, _cnnKernel=_row.convolutionKernel,
+                                           _convActivation=_row.convolutionActivation,
+                                           _cnnPool=_row.poolSize,
+                                           _cnnFlatten=_row.flattenLayer,
+                                           _cnnDense=_row.denseUnits,
+                                           _denseActivation=_row.denseActivation,
+                                           _cnnDropout=_row.dropoutFraction,
+                                           _outputActivation=_row.outputActivation,
+                                           _lossFunction=_row.lossFunction)
 
                     # Fit the model to the data
                     _history = model.fit(_articleSequencesPadded[_train],
@@ -375,13 +414,11 @@ def main(_gridFile='./NeuralNet/rnnTest.csv', _numFolds=2, _epochs=2, _verbose=1
                                          validation_data=(_articleSequencesPadded[_val],
                                                           np.array([_leanVectorDict[k] for k in _leanVals[_val]])),
                                          verbose=_verbose)
-
                     _historyDict = _history.history
                     _facc.append(_historyDict['categorical_accuracy'])
                     _fval_acc.append(_historyDict['val_categorical_accuracy'])
                     _floss.append(_historyDict['loss'])
                     _fval_loss.append(_historyDict['val_loss'])
-
 
             j += 1
 

@@ -187,18 +187,19 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             # Load the data from the database
             _command = "SELECT cn.id, ln.bias_final, cn.text " + \
                        "FROM train_content cn, train_lean ln " + \
-                       "WHERE (cn.`published-at` IS NOT NULL) AND" + \
-                             "(cn.`published-at` >= '2009-01-01') AND " + \
+                       "WHERE (cn.id < 9999999999) AND " + \
+                       "(cn.`published-at` >= '2009-01-01') AND " + \
                              "(cn.id == ln.id) AND " + \
                              "(ln.url_keep == 1) AND " + \
                              "(cn.id NOT IN (SELECT a.id " + \
                                             "FROM train_content a, train_content b " + \
-                                            "WHERE (a.id == b.id) AND " + \
-                                                  "(a.text == b.text)) AND " + \
-                             "(cn.id < 10000))"
+                                            "WHERE (a.id < b.id) AND " + \
+                                                  "(a.text == b.text)));"
+
             _cur.execute(_command)
             _df = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text'))
             _db.close()
+            print('%s records read from database' % len(_df))
 
         # If we are reading in a new GloVe global word vector file, here's where we do it.  This creates a
         # {word: vector} dictionary for every word in the GloVe input file.
@@ -318,7 +319,13 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
         # class in both the training and test/validation set.  Thus we don't end
         # up with a horribly imbalanced set as part of our cross validation.
         #
-        print('Performing %s fold cross validation, %s epochs per fold' % (_numFolds, _epochs))
+        if _numFolds == 0:
+            _foldFlag = False
+            _numFolds = 10
+            print('Performing 90/10 split training and validation, %s epochs' % _epochs)
+        else:
+            _foldFlag = True
+            print('Performing %s fold cross validation, %s epochs per fold' % (_numFolds, _epochs))
         _kfold = StratifiedKFold(n_splits=_numFolds, shuffle=True)
 
         # Initialize some variables to hold our crossvalidation results
@@ -330,34 +337,63 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
         # Perform the K-fold cross validation
         j = 1
         for _train, _val in _kfold.split(_articleSequencesPadded, _leanVals):
-            print('\nFold %s' % j)
+            if _foldFlag:
+                print('\nFold %s' % j)
 
-            # Construct the Tensorflow/keras model for a convolutional neural net
-            model = constructModel(_vocabSize=_vocabSize, _dimensions=_dimensions, _embeddingMatrix=_embeddingMatrix,
-                                   _padLength=_padLength,
-                                   _cnnFilters=_row.convolutionFilters, _cnnKernel=_row.convolutionKernel,
-                                   _convActivation=_row.convolutionActivation,
-                                   _cnnPool=_row.poolSize,
-                                   _cnnFlatten=_row.flattenLayer,
-                                   _cnnDense=_row.denseUnits,
-                                   _denseActivation=_row.denseActivation,
-                                   _cnnDropout=_row.dropoutFraction,
-                                   _outputActivation=_row.outputActivation,
-                                   _lossFunction=_row.lossFunction)
+                # Construct the Tensorflow/keras model for a convolutional neural net
+                model = constructModel(_vocabSize=_vocabSize, _dimensions=_dimensions, _embeddingMatrix=_embeddingMatrix,
+                                       _padLength=_padLength,
+                                       _cnnFilters=_row.convolutionFilters, _cnnKernel=_row.convolutionKernel,
+                                       _convActivation=_row.convolutionActivation,
+                                       _cnnPool=_row.poolSize,
+                                       _cnnFlatten=_row.flattenLayer,
+                                       _cnnDense=_row.denseUnits,
+                                       _denseActivation=_row.denseActivation,
+                                       _cnnDropout=_row.dropoutFraction,
+                                       _outputActivation=_row.outputActivation,
+                                       _lossFunction=_row.lossFunction)
 
-            # Fit the model to the data
-            _history = model.fit(_articleSequencesPadded[_train],
-                                 np.array([_leanVectorDict[k] for k in _leanVals[_train]]),
-                                 epochs=_epochs, batch_size=128,
-                                 validation_data=(_articleSequencesPadded[_val],
-                                                  np.array([_leanVectorDict[k] for k in _leanVals[_val]])),
-                                 verbose=_verbose)
+                # Fit the model to the data
+                _history = model.fit(_articleSequencesPadded[_train],
+                                     np.array([_leanVectorDict[k] for k in _leanVals[_train]]),
+                                     epochs=_epochs, batch_size=128,
+                                     validation_data=(_articleSequencesPadded[_val],
+                                                      np.array([_leanVectorDict[k] for k in _leanVals[_val]])),
+                                     verbose=_verbose)
+                _historyDict = _history.history
+                _facc.append(_historyDict['categorical_accuracy'])
+                _fval_acc.append(_historyDict['val_categorical_accuracy'])
+                _floss.append(_historyDict['loss'])
+                _fval_loss.append(_historyDict['val_loss'])
 
-            _historyDict = _history.history
-            _facc.append(_historyDict['categorical_accuracy'])
-            _fval_acc.append(_historyDict['val_categorical_accuracy'])
-            _floss.append(_historyDict['loss'])
-            _fval_loss.append(_historyDict['val_loss'])
+            else:
+                if j == 1:
+                    print('Training and Validating Model')
+                    # Construct the Tensorflow/keras model for a convolutional neural net
+                    model = constructModel(_vocabSize=_vocabSize, _dimensions=_dimensions, _embeddingMatrix=_embeddingMatrix,
+                                           _padLength=_padLength,
+                                           _cnnFilters=_row.convolutionFilters, _cnnKernel=_row.convolutionKernel,
+                                           _convActivation=_row.convolutionActivation,
+                                           _cnnPool=_row.poolSize,
+                                           _cnnFlatten=_row.flattenLayer,
+                                           _cnnDense=_row.denseUnits,
+                                           _denseActivation=_row.denseActivation,
+                                           _cnnDropout=_row.dropoutFraction,
+                                           _outputActivation=_row.outputActivation,
+                                           _lossFunction=_row.lossFunction)
+
+                    # Fit the model to the data
+                    _history = model.fit(_articleSequencesPadded[_train],
+                                         np.array([_leanVectorDict[k] for k in _leanVals[_train]]),
+                                         epochs=_epochs, batch_size=128,
+                                         validation_data=(_articleSequencesPadded[_val],
+                                                          np.array([_leanVectorDict[k] for k in _leanVals[_val]])),
+                                         verbose=_verbose)
+                    _historyDict = _history.history
+                    _facc.append(_historyDict['categorical_accuracy'])
+                    _fval_acc.append(_historyDict['val_categorical_accuracy'])
+                    _floss.append(_historyDict['loss'])
+                    _fval_loss.append(_historyDict['val_loss'])
 
             j += 1
 
@@ -374,7 +410,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             _maxRow = _row
         if np.min(np.mean(np.matrix(_fval_loss), axis=0).tolist()[0]) < _minLoss:
             _minLoss = np.min(np.mean(np.matrix(_fval_loss), axis=0).tolist()[0])
-            _minEpoch = np.argmin(np.mean(np.matrix(_fval_loss), axis=0).tolist()[0])
+            _minEpoch = np.argmin(np.mean(np.matrix(_fval_loss), axis=0).tolist()[0]) + 1
             _minRow = _row
 
         # Remove the current model from the tensorflow backend to prepare for the next model.
