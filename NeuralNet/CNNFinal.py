@@ -3,9 +3,9 @@
 #
 # Author:  Paul M. Brinegar, II
 #
-# Date Created:  20190301
+# Date Created:  20190312
 #
-# CNN2grid.py - Code for running a two-level CNN (Convolutional Neural Net) with grid search
+# CNNgrid.py - Code for running a CNN (Convolutional Neural Net) with grid search
 #
 # This code should extract the article ID, leaning, and text from our SQLite database,
 # convert the text for each article into a series of embedded word vectors (padding
@@ -68,11 +68,6 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
     # Add a max pooling layer.  This layer looks at the vectors contained in a window of size _cnnPool
     # and outputs the vector with the greatest L2 norm.
     theModel.add(keras.layers.MaxPool1D(pool_size=_cnnPool))
-
-    # Add a second 1-dimensional convolution layer and pooling layer.
-    theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel, activation=_convActivation))
-    theModel.add(keras.layers.MaxPool1D(pool_size=_cnnPool))
-
 
     # Add a flatten layer.  This layer removes reduces the output to a one-dimensional vector
     if _cnnFlatten:
@@ -192,7 +187,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             # Load the data from the database
             _command = "SELECT cn.id, ln.bias_final, cn.text " + \
                        "FROM train_content cn, train_lean ln " + \
-                       "WHERE (cn.id < 50000) AND " + \
+                       "WHERE (cn.id < 9999999999) AND " + \
                        "(cn.`published-at` >= '2009-01-01') AND " + \
                              "(cn.id == ln.id) AND " + \
                              "(ln.url_keep == 1) AND " + \
@@ -203,8 +198,23 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
 
             _cur.execute(_command)
             _df = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text'))
+
+            _command = "SELECT cn.id, ln.bias_final, cn.text " + \
+                       "FROM test_content cn, test_lean ln " + \
+                       "WHERE (cn.id < 9999999999) AND " + \
+                       "(cn.`published-at` >= '2009-01-01') AND " + \
+                             "(cn.id == ln.id) AND " + \
+                             "(ln.url_keep == 1) AND " + \
+                             "(cn.id NOT IN (SELECT a.id " + \
+                                            "FROM test_content a, test_content b " + \
+                                            "WHERE (a.id < b.id) AND " + \
+                                                  "(a.text == b.text)));"
+            _cur.execute(_command)
+            _dfx = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text'))
+
             _db.close()
-            print('%s records read from database' % len(_df))
+            print('%s training records read from database' % len(_df))
+            print('%s test records read from database' % len(_dfx))
 
         # If we are reading in a new GloVe global word vector file, here's where we do it.  This creates a
         # {word: vector} dictionary for every word in the GloVe input file.
@@ -251,21 +261,34 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             t.index_word = {index: word for index, word in t.index_word.items() if index <= _vocabSize}
             _vocabSize = max([index for index, word in t.index_word.items()]) + 1   # corrects for one-based indexing
 
+            print('Vocabulary to use in generating word embeddings')
+            for k, v in t.index_word.items():
+                print('%s\t%s' % (k, v))
+
+            print('Political figures:')
+            print('trump\t%s\nclinton\t%s\nobama\t%s\n' % (t.word_index['trump'],
+                                                           t.word_index['clinton'],
+                                                           t.word_index['obama']))
+
             # Sequence the articles to convert them to a list of lists where each inner list
             # contains a serquence of word indices.
             print('Converting each article into a sequence of word indices')
-            _articleSequences = t.texts_to_sequences(_df.text.values)
+            _trainArticleSequences = t.texts_to_sequences(_df.text.values)
+            _testArticleSequences = t.texts_to_sequences(_dfx.text.values)
 
             # Truncate/pad each article to a uniform length.  We wish to capture at least 90% of
             # the articles in their entirety.  Padding will be performed at the end of the article.
             print('Performing article padding/truncation to make all articles a uniform length')
-            _padLength = np.sort(np.array([len(x) for x in _articleSequences]))[int(np.ceil(
-                len(_articleSequences) * _row.captureFraction))]
-            _articleSequencesPadded = keras.preprocessing.sequence.pad_sequences(_articleSequences,
+            _padLength = np.sort(np.array([len(x) for x in _trainArticleSequences]))[int(np.ceil(
+                len(_trainArticleSequences) * _row.captureFraction))]
+            _trainArticleSequencesPadded = keras.preprocessing.sequence.pad_sequences(_trainArticleSequences,
                                                                                  maxlen=_padLength,
                                                                                  padding='post')
+            _testArticleSequencesPadded = keras.preprocessing.sequence.pad_sequences(_testArticleSequences,
+                                                                                     maxlen=_padLength,
+                                                                                     padding='post')
             print('    Length of training set articles: %s' % _padLength)
-            print('    Number of training set articles: %s' % len(_articleSequencesPadded))
+            print('    Number of training set articles: %s' % len(_trainArticleSequencesPadded))
 
             # Build the embedding matrix for use in our neural net.  Initialize it to zeros.
             # The matrix has _vocabSize rows and _dimensions columns, and consists of a word
@@ -311,65 +334,49 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
                                4: [0,0,0,0,1]}
             _leanVals = np.array([_leanValuesDict[k] for k in _df.lean])
 
-        # Perform a K-fold cross validation of the training set.
-        # We had to manually create this due to the way keras' model.fit
-        # handles splitting.  Keras doesn't randomly or sequentially split
-        # a dataset into train/validation sets; rather, it just always takes
-        # the last N percent of the set as the validation set... can't
-        # do cross validation like that unless we shuffled the data
-        # each time through.
+        # Train the model using the full training set, test on the full
+        # test set.
         #
-        # By using sklearn's StratifiedKFold routine, we split the dataset into
-        # K folds while attempting to preserve the relative percentages of each
-        # class in both the training and test/validation set.  Thus we don't end
-        # up with a horribly imbalanced set as part of our cross validation.
-        #
-        foldFlag = False
-        if _numFolds == 0:
-            _numFolds = 10
-            print('Performing 90/10 split training and validation, %s epochs' % _epochs)
-        else:
-            foldFlag = True
-            print('Performing %s fold cross validation, %s epochs per fold' % (_numFolds, _epochs))
-        _kfold = StratifiedKFold(n_splits=_numFolds, shuffle=True)
-
-        # Initialize some variables to hold our crossvalidation results
+        print('Training the model, %s epochs' % _epochs)
         _facc = []
-        _fval_acc = []
         _floss = []
-        _fval_loss = []
 
-        # Perform the K-fold cross validation
-        j = 1
-        for _train, _val in _kfold.split(_articleSequencesPadded, _leanVals):
-            if foldFlag:
-                print('\nFold %s' % j)
+        # Construct the Tensorflow/keras model for a convolutional neural net
+        model = constructModel(_vocabSize=_vocabSize, _dimensions=_dimensions, _embeddingMatrix=_embeddingMatrix,
+                               _padLength=_padLength,
+                                _cnnFilters=_row.convolutionFilters, _cnnKernel=_row.convolutionKernel,
+                               _convActivation=_row.convolutionActivation,
+                               _cnnPool=_row.poolSize,
+                               _cnnFlatten=_row.flattenLayer,
+                               _cnnDense=_row.denseUnits,
+                               _denseActivation=_row.denseActivation,
+                               _cnnDropout=_row.dropoutFraction,
+                               _outputActivation=_row.outputActivation,
+                               _lossFunction=_row.lossFunction)
 
-                # Construct the Tensorflow/keras model for a convolutional neural net
-                model = constructModel(_vocabSize=_vocabSize, _dimensions=_dimensions, _embeddingMatrix=_embeddingMatrix,
-                                       _padLength=_padLength,
-                                       _cnnFilters=_row.convolutionFilters, _cnnKernel=_row.convolutionKernel,
-                                       _convActivation=_row.convolutionActivation,
-                                       _cnnPool=_row.poolSize,
-                                       _cnnFlatten=_row.flattenLayer,
-                                       _cnnDense=_row.denseUnits,
-                                       _denseActivation=_row.denseActivation,
-                                       _cnnDropout=_row.dropoutFraction,
-                                       _outputActivation=_row.outputActivation,
-                                       _lossFunction=_row.lossFunction)
+        # Fit the model to the training data
+        _history = model.fit(_trainArticleSequencesPadded,
+                                np.array([_leanVectorDict[k] for k in _leanVals]),
+                             epochs=_epochs, batch_size=128,
+                             verbose=_verbose)
+        _historyDict = _history.history
+        _facc.append(_historyDict['categorical_accuracy'])
+        _floss.append(_historyDict['loss'])
 
-                # Fit the model to the data
-                _history = model.fit(_articleSequencesPadded[_train],
-                                     np.array([_leanVectorDict[k] for k in _leanVals[_train]]),
-                                     epochs=_epochs, batch_size=128,
-                                     validation_data=(_articleSequencesPadded[_val],
-                                                      np.array([_leanVectorDict[k] for k in _leanVals[_val]])),
-                                     verbose=_verbose)
-                _historyDict = _history.history
-                _facc.append(_historyDict['categorical_accuracy'])
-                _fval_acc.append(_historyDict['val_categorical_accuracy'])
-                _floss.append(_historyDict['loss'])
-                _fval_loss.append(_historyDict['val_loss'])
+        # Use the fitted model to predict the leaning of each article in the
+        # test set.
+        _testPrediction = model.predict(_testArticleSequencesPadded, batch_size=128, verbose= _verbose)
+
+        # The predictions consist of ????, which we must compare to our actual
+        # test set leanings
+
+
+
+
+
+
+
+
 
             else:
                 if j == 1:
