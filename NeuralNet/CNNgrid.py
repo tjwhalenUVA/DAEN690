@@ -1,4 +1,4 @@
-#! /Users/dpbrinegar/anaconda3/envs/gitHub/bin/python
+#! /usr/bin/python
 # -*- coding: utf-8 -*-
 #
 # Author:  Paul M. Brinegar, II
@@ -187,7 +187,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             # Load the data from the database
             _command = "SELECT cn.id, ln.bias_final, cn.text " + \
                        "FROM train_content cn, train_lean ln " + \
-                       "WHERE (cn.id < 9999999999) AND " + \
+                       "WHERE (cn.id < 100000) AND " + \
                        "(cn.`published-at` >= '2009-01-01') AND " + \
                              "(cn.id == ln.id) AND " + \
                              "(ln.url_keep == 1) AND " + \
@@ -253,6 +253,26 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             _junklen = [len(x) for x in _junk]
             _df = _df.assign(length=_junklen)
 
+            # It is possible that articles contain publisher information or bylines that are
+            # highly correlated with the leaning (since leaning is assigned by-publisher).
+            # To combat this, we should remove byline information.  This information usually
+            # occurs at the beginning or end of an article, so we are removing the first and
+            # last N words from each article.  Of course, this means that we are throwing out
+            # any article of length 2N or less.
+            _N = 50
+            _articleSequences = [x[_N:-_N] for x in _junk if len(x) > (2*_N)]
+
+            # Truncate/pad each article to a uniform length.  We wish to capture at least 90% of
+            # the articles in their entirety.  Padding will be performed at the end of the article.
+            print('Performing article padding/truncation to make all articles a uniform length')
+            _padLength = np.sort(np.array([len(x) for x in _articleSequences]))[int(np.ceil(
+                len(_articleSequences) * _row.captureFraction))]
+            _articleSequencesPadded = keras.preprocessing.sequence.pad_sequences(_articleSequences,
+                                                                                 maxlen=_padLength,
+                                                                                 padding='post')
+            print('    Length of training set articles: %s' % _padLength)
+            print('    Number of training set articles: %s' % len(_articleSequencesPadded))
+
             # Determine how much correlation there is between each word in the vocabulary
             # and article leaning.  The result should be an N by 5 matrix, where N is
             # the number of words/tokens in the vocabulary -- 5 columns, one for each
@@ -279,27 +299,13 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
 
                 ss_xy = np.sum(np.multiply(_leanArray, _presence), axis=0) - np.multiply(_sx, _sy) / float(len(_leanArray))
 
-                _corArray[_i,] = np.square(ss_xy) / ss_xx / ss_yy
+                _corArray[_i,] = np.nan_to_num(np.square(ss_xy) / ss_xx / ss_yy)
 
-            # It is possible that articles contain publisher information or bylines that are
-            # highly correlated with the leaning (since leaning is assigned by-publisher).
-            # To combat this, we should remove byline information.  This information usually
-            # occurs at the beginning or end of an article, so we are removing the first and
-            # last N words from each article.  Of course, this means that we are throwing out
-            # any article of length 2N or less.
-            _N = 50
-            _articleSequences = [x[_N:-_N] for x in _junk if len(x) > (2*_N)]
-
-            # Truncate/pad each article to a uniform length.  We wish to capture at least 90% of
-            # the articles in their entirety.  Padding will be performed at the end of the article.
-            print('Performing article padding/truncation to make all articles a uniform length')
-            _padLength = np.sort(np.array([len(x) for x in _articleSequences]))[int(np.ceil(
-                len(_articleSequences) * _row.captureFraction))]
-            _articleSequencesPadded = keras.preprocessing.sequence.pad_sequences(_articleSequences,
-                                                                                 maxlen=_padLength,
-                                                                                 padding='post')
-            print('    Length of training set articles: %s' % _padLength)
-            print('    Number of training set articles: %s' % len(_articleSequencesPadded))
+            _leans = ['left', 'left-center', 'least', 'right-center', 'right']
+            _maxcor = np.max(_corArray, axis=0)
+            _maxcorI = np.argmax(_corArray, axis=0)
+            for _i in range(len(_maxcor)):
+                print('Highest correlation for leaning "%s": %0.4f -- %s' % (_leans[_i], _maxcor[_i], t.index_word[_maxcorI[_i]]))
 
             # Build the embedding matrix for use in our neural net.  Initialize it to zeros.
             # The matrix has _vocabSize rows and _dimensions columns, and consists of a word

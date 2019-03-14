@@ -1,9 +1,9 @@
-#! /Users/dpbrinegar/anaconda3/envs/gitHub/bin/python
+#! /usr/bin/python
 # -*- coding: utf-8 -*-
 #
 # Author:  Paul M. Brinegar, II
 #
-# Date Created:  20190312
+# Date Created:  20190301
 #
 # CNNgrid.py - Code for running a CNN (Convolutional Neural Net) with grid search
 #
@@ -61,32 +61,62 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
                                         input_length=_padLength,
                                         trainable=False))
 
-    # Add a 1-dimensional convolution layer.  This layer moves a window of size _cnnKernel across
-    # the input and creates an output of length _cnnFilters for each window.
-    theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel, activation=_convActivation))
+    # Add a 1-dimensional convolution layer.  This layer slides a window of size 5 across the input
+    # and creates an output of shape
+    theModel.add(keras.layers.Conv1D(filters=10, kernel_size=5, activation='relu'))
 
-    # Add a max pooling layer.  This layer looks at the vectors contained in a window of size _cnnPool
-    # and outputs the vector with the greatest L2 norm.
-    theModel.add(keras.layers.MaxPool1D(pool_size=_cnnPool))
+    theModel.add(keras.layers.Dropout(0.20))
 
-    # Add a flatten layer.  This layer removes reduces the output to a one-dimensional vector
-    if _cnnFlatten:
-        theModel.add(keras.layers.Flatten())
+    theModel.add(keras.layers.MaxPool1D(pool_size=3))
 
-    # Add a fully connected dense layer.  This layer adds a lot of nodes to the model to allow
-    # for different features in the article to activate different groups of nodes.
-    theModel.add(keras.layers.Dense(units=_cnnDense, activation=_denseActivation))
+    theModel.add(keras.layers.Conv1D(filters=50, kernel_size=3, activation='relu'))
 
-    # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
-    # during each training epoch.  Doing this prevents a small set of nodes doing all the
-    # work while a bunch of other nodes sit around playing poker.
-    if _cnnDropout > 0.0:
-        theModel.add(keras.layers.Dropout(_cnnDropout))
+    theModel.add(keras.layers.Dropout(0.20))
 
-    # Add our output layer.  We have 5 classes of output "left", "left-center", "least",
-    # "right-center", and "right".  This layer converts the inputs from the dense/dropout
-    # layer into outputs for these 5 classes, essentially predicting the article leaning.
-    theModel.add(keras.layers.Dense(5, activation=_outputActivation))
+    theModel.add(keras.layers.MaxPool1D(pool_size=2))
+
+    theModel.add(keras.layers.Conv1D(filters=150, kernel_size=5, activation='relu'))
+
+    theModel.add(keras.layers.Dropout(0.20))
+
+    theModel.add(keras.layers.MaxPool1D(pool_size=2))
+
+    theModel.add(keras.layers.Flatten())
+
+    theModel.add(keras.layers.Dense(units=50, activation='relu'))
+
+    theModel.add(keras.layers.Dropout(0.20))
+
+    theModel.add(keras.layers.Dense(units=5, activation='softmax'))
+
+
+
+    # # Add a 1-dimensional convolution layer.  This layer moves a window of size _cnnKernel across
+    # # the input and creates an output of length _cnnFilters for each window.
+    # theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel, activation=_convActivation))
+    #
+    # # Add a max pooling layer.  This layer looks at the vectors contained in a window of size _cnnPool
+    # # and outputs the vector with the greatest L2 norm.
+    # theModel.add(keras.layers.MaxPool1D(pool_size=_cnnPool))
+    #
+    # # Add a flatten layer.  This layer removes reduces the output to a one-dimensional vector
+    # if _cnnFlatten:
+    #     theModel.add(keras.layers.Flatten())
+    #
+    # # Add a fully connected dense layer.  This layer adds a lot of nodes to the model to allow
+    # # for different features in the article to activate different groups of nodes.
+    # theModel.add(keras.layers.Dense(units=_cnnDense, activation=_denseActivation))
+    #
+    # # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
+    # # during each training epoch.  Doing this prevents a small set of nodes doing all the
+    # # work while a bunch of other nodes sit around playing poker.
+    # if _cnnDropout > 0.0:
+    #     theModel.add(keras.layers.Dropout(_cnnDropout))
+    #
+    # # Add our output layer.  We have 5 classes of output "left", "left-center", "least",
+    # # "right-center", and "right".  This layer converts the inputs from the dense/dropout
+    # # layer into outputs for these 5 classes, essentially predicting the article leaning.
+    # theModel.add(keras.layers.Dense(5, activation=_outputActivation))
 
     # Display a summary of our model
     if _summarize:
@@ -103,7 +133,7 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
     return theModel
 
 
-def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
+def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
     #
     # Import all the packages!
     print('Importing packages')
@@ -187,7 +217,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             # Load the data from the database
             _command = "SELECT cn.id, ln.bias_final, cn.text " + \
                        "FROM train_content cn, train_lean ln " + \
-                       "WHERE (cn.id < 9999999999) AND " + \
+                       "WHERE (cn.id < 999999999) AND " + \
                        "(cn.`published-at` >= '2009-01-01') AND " + \
                              "(cn.id == ln.id) AND " + \
                              "(ln.url_keep == 1) AND " + \
@@ -198,10 +228,9 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
 
             _cur.execute(_command)
             _df = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text'))
-
             _command = "SELECT cn.id, ln.bias_final, cn.text " + \
                        "FROM test_content cn, test_lean ln " + \
-                       "WHERE (cn.id < 9999999999) AND " + \
+                       "WHERE (cn.id < 999999999) AND " + \
                        "(cn.`published-at` >= '2009-01-01') AND " + \
                              "(cn.id == ln.id) AND " + \
                              "(ln.url_keep == 1) AND " + \
@@ -209,9 +238,9 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
                                             "FROM test_content a, test_content b " + \
                                             "WHERE (a.id < b.id) AND " + \
                                                   "(a.text == b.text)));"
+
             _cur.execute(_command)
             _dfx = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text'))
-
             _db.close()
             print('%s training records read from database' % len(_df))
             print('%s test records read from database' % len(_dfx))
@@ -261,34 +290,73 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             t.index_word = {index: word for index, word in t.index_word.items() if index <= _vocabSize}
             _vocabSize = max([index for index, word in t.index_word.items()]) + 1   # corrects for one-based indexing
 
-            print('Vocabulary to use in generating word embeddings')
-            for k, v in t.index_word.items():
-                print('%s\t%s' % (k, v))
-
-            print('Political figures:')
-            print('trump\t%s\nclinton\t%s\nobama\t%s\n' % (t.word_index['trump'],
-                                                           t.word_index['clinton'],
-                                                           t.word_index['obama']))
-
             # Sequence the articles to convert them to a list of lists where each inner list
-            # contains a serquence of word indices.
+            # contains a serquence of word indices.  Store in temporary _junk variable.
             print('Converting each article into a sequence of word indices')
-            _trainArticleSequences = t.texts_to_sequences(_df.text.values)
-            _testArticleSequences = t.texts_to_sequences(_dfx.text.values)
+            _junk = t.texts_to_sequences(_df.text.values)
+            _junklen = [len(x) for x in _junk]
+            _df = _df.assign(length=_junklen)
+
+            # It is possible that articles contain publisher information or bylines that are
+            # highly correlated with the leaning (since leaning is assigned by-publisher).
+            # To combat this, we should remove byline information.  This information usually
+            # occurs at the beginning or end of an article, so we are removing the first and
+            # last N words from each article.  Of course, this means that we are throwing out
+            # any article of length 2N or less.
+            _N = 50
+            _articleSequences = [x[_N:-_N] for x in _junk if len(x) > (2*_N)]
+
+            # We shouldn't have to truncate the test data since we're not training on it
+            _testarticleSequences = t.texts_to_sequences(_dfx.text.values)
 
             # Truncate/pad each article to a uniform length.  We wish to capture at least 90% of
             # the articles in their entirety.  Padding will be performed at the end of the article.
             print('Performing article padding/truncation to make all articles a uniform length')
-            _padLength = np.sort(np.array([len(x) for x in _trainArticleSequences]))[int(np.ceil(
-                len(_trainArticleSequences) * _row.captureFraction))]
-            _trainArticleSequencesPadded = keras.preprocessing.sequence.pad_sequences(_trainArticleSequences,
+            _padLength = np.sort(np.array([len(x) for x in _articleSequences]))[int(np.ceil(
+                len(_articleSequences) * _row.captureFraction))]
+            _articleSequencesPadded = keras.preprocessing.sequence.pad_sequences(_articleSequences,
                                                                                  maxlen=_padLength,
                                                                                  padding='post')
-            _testArticleSequencesPadded = keras.preprocessing.sequence.pad_sequences(_testArticleSequences,
+            _testarticleSequencesPadded = keras.preprocessing.sequence.pad_sequences(_testarticleSequences,
                                                                                      maxlen=_padLength,
                                                                                      padding='post')
             print('    Length of training set articles: %s' % _padLength)
-            print('    Number of training set articles: %s' % len(_trainArticleSequencesPadded))
+            print('    Number of training set articles: %s' % len(_articleSequencesPadded))
+
+            # Determine how much correlation there is between each word in the vocabulary
+            # and article leaning.  The result should be an N by 5 matrix, where N is
+            # the number of words/tokens in the vocabulary -- 5 columns, one for each
+            # category of leaning.
+            if _correlate:
+                _leanValuesDict = {'left': 0,
+                                   'left-center': 1,
+                                   'least': 2,
+                                   'right-center': 3,
+                                   'right': 4}
+                _leanVectorDict = {0: [1,0,0,0,0],
+                                   1: [0,1,0,0,0],
+                                   2: [0,0,1,0,0],
+                                   3: [0,0,0,1,0],
+                                   4: [0,0,0,0,1]}
+                _leanArray = np.array([_leanVectorDict[_leanValuesDict[x]] for x in _df.lean])
+                _corArray = np.zeros(shape=(max(t.index_word.keys())+1, len(_leanValuesDict)))
+                _sy = np.sum(_leanArray, axis=0)
+                ss_yy = _sy - np.square(_sy) / float(len(_leanArray))
+                for _i in t.index_word.keys():
+                    print('Computing correlation for word %s: %s' % (_i, t.index_word[_i]))
+                    _presence = np.array([[int(_i in x) for x in _junk], ] * len(_leanValuesDict)).transpose()
+                    _sx = np.sum(_presence, axis=0)
+                    ss_xx = _sx - np.square(_sx) / float(len(_leanArray))
+
+                    ss_xy = np.sum(np.multiply(_leanArray, _presence), axis=0) - np.multiply(_sx, _sy) / float(len(_leanArray))
+
+                    _corArray[_i,] = np.nan_to_num(np.square(ss_xy) / ss_xx / ss_yy)
+
+                _leans = ['left', 'left-center', 'least', 'right-center', 'right']
+                _maxcor = np.max(_corArray, axis=0)
+                _maxcorI = np.argmax(_corArray, axis=0)
+                for _i in range(len(_maxcor)):
+                    print('Highest correlation for leaning "%s": %0.4f -- %s' % (_leans[_i], _maxcor[_i], t.index_word[_maxcorI[_i]]))
 
             # Build the embedding matrix for use in our neural net.  Initialize it to zeros.
             # The matrix has _vocabSize rows and _dimensions columns, and consists of a word
@@ -332,51 +400,67 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
                                2: [0,0,1,0,0],
                                3: [0,0,0,1,0],
                                4: [0,0,0,0,1]}
-            _leanVals = np.array([_leanValuesDict[k] for k in _df.lean])
+            _leanVals = np.array([_leanValuesDict[k] for k in _df.lean[_df.length > (2*_N)]])
 
-        # Train the model using the full training set, test on the full
-        # test set.
+        # Perform a K-fold cross validation of the training set.
+        # We had to manually create this due to the way keras' model.fit
+        # handles splitting.  Keras doesn't randomly or sequentially split
+        # a dataset into train/validation sets; rather, it just always takes
+        # the last N percent of the set as the validation set... can't
+        # do cross validation like that unless we shuffled the data
+        # each time through.
         #
-        print('Training the model, %s epochs' % _epochs)
+        # By using sklearn's StratifiedKFold routine, we split the dataset into
+        # K folds while attempting to preserve the relative percentages of each
+        # class in both the training and test/validation set.  Thus we don't end
+        # up with a horribly imbalanced set as part of our cross validation.
+        #
+        if _numFolds == 0:
+            _foldFlag = False
+            _numFolds = 10
+            print('Performing 90/10 split training and validation, %s epochs' % _epochs)
+        else:
+            _foldFlag = True
+            print('Performing %s fold cross validation, %s epochs per fold' % (_numFolds, _epochs))
+        _kfold = StratifiedKFold(n_splits=_numFolds, shuffle=True)
+
+        # Initialize some variables to hold our crossvalidation results
         _facc = []
+        _fval_acc = []
         _floss = []
+        _fval_loss = []
 
-        # Construct the Tensorflow/keras model for a convolutional neural net
-        model = constructModel(_vocabSize=_vocabSize, _dimensions=_dimensions, _embeddingMatrix=_embeddingMatrix,
-                               _padLength=_padLength,
-                                _cnnFilters=_row.convolutionFilters, _cnnKernel=_row.convolutionKernel,
-                               _convActivation=_row.convolutionActivation,
-                               _cnnPool=_row.poolSize,
-                               _cnnFlatten=_row.flattenLayer,
-                               _cnnDense=_row.denseUnits,
-                               _denseActivation=_row.denseActivation,
-                               _cnnDropout=_row.dropoutFraction,
-                               _outputActivation=_row.outputActivation,
-                               _lossFunction=_row.lossFunction)
+        # Perform the K-fold cross validation
+        j = 1
+        for _train, _val in _kfold.split(_articleSequencesPadded, _leanVals):
+            if _foldFlag:
+                print('\nFold %s' % j)
 
-        # Fit the model to the training data
-        _history = model.fit(_trainArticleSequencesPadded,
-                                np.array([_leanVectorDict[k] for k in _leanVals]),
-                             epochs=_epochs, batch_size=128,
-                             verbose=_verbose)
-        _historyDict = _history.history
-        _facc.append(_historyDict['categorical_accuracy'])
-        _floss.append(_historyDict['loss'])
+                # Construct the Tensorflow/keras model for a convolutional neural net
+                model = constructModel(_vocabSize=_vocabSize, _dimensions=_dimensions, _embeddingMatrix=_embeddingMatrix,
+                                       _padLength=_padLength,
+                                       _cnnFilters=_row.convolutionFilters, _cnnKernel=_row.convolutionKernel,
+                                       _convActivation=_row.convolutionActivation,
+                                       _cnnPool=_row.poolSize,
+                                       _cnnFlatten=_row.flattenLayer,
+                                       _cnnDense=_row.denseUnits,
+                                       _denseActivation=_row.denseActivation,
+                                       _cnnDropout=_row.dropoutFraction,
+                                       _outputActivation=_row.outputActivation,
+                                       _lossFunction=_row.lossFunction)
 
-        # Use the fitted model to predict the leaning of each article in the
-        # test set.
-        _testPrediction = model.predict(_testArticleSequencesPadded, batch_size=128, verbose= _verbose)
-
-        # The predictions consist of ????, which we must compare to our actual
-        # test set leanings
-
-
-
-
-
-
-
-
+                # Fit the model to the data
+                _history = model.fit(_articleSequencesPadded[_train],
+                                     np.array([_leanVectorDict[k] for k in _leanVals[_train]]),
+                                     epochs=_epochs, batch_size=128,
+                                     validation_data=(_articleSequencesPadded[_val],
+                                                      np.array([_leanVectorDict[k] for k in _leanVals[_val]])),
+                                     verbose=_verbose)
+                _historyDict = _history.history
+                _facc.append(_historyDict['categorical_accuracy'])
+                _fval_acc.append(_historyDict['val_categorical_accuracy'])
+                _floss.append(_historyDict['loss'])
+                _fval_loss.append(_historyDict['val_loss'])
 
             else:
                 if j == 1:
@@ -475,6 +559,39 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
     for _row in _dfGrid.itertuples():
         print(_row)
 
+    if _runtest:
+        print('Training on Full Training Set')
+        # Construct the Tensorflow/keras model for a convolutional neural net
+        model = constructModel(_vocabSize=_vocabSize, _dimensions=_dimensions, _embeddingMatrix=_embeddingMatrix,
+                               _padLength=_padLength,
+                               _cnnFilters=_row.convolutionFilters, _cnnKernel=_row.convolutionKernel,
+                               _convActivation=_row.convolutionActivation,
+                               _cnnPool=_row.poolSize,
+                               _cnnFlatten=_row.flattenLayer,
+                               _cnnDense=_row.denseUnits,
+                               _denseActivation=_row.denseActivation,
+                               _cnnDropout=_row.dropoutFraction,
+                               _outputActivation=_row.outputActivation,
+                               _lossFunction=_row.lossFunction)
+
+        # Fit the model to the data
+        _history = model.fit(_articleSequencesPadded,
+                             np.array([_leanVectorDict[k] for k in _leanVals]),
+                             epochs=_maxEpoch, batch_size=128,
+                             verbose=_verbose)
+
+        print('Applying Model to Full Test Set')
+        print(_testarticleSequencesPadded)
+        _predictions = model.predict(_testarticleSequencesPadded)
+        print(_predictions)
+        print(_testarticleSequencesPadded.shape)
+
+        _testLean = np.array([_leanValuesDict[x] for x in _dfx.lean])
+        _testPred = np.argmax(np.array(_predictions), axis=1)
+        print(_testLean)
+        print(_testPred)
+        print(float(sum(_testLean == _testPred)) / float(len(_testPred)))
+
 
 if __name__ == '__main__':
     _parser = argparse.ArgumentParser(description='Grid search for convolution neural net model.')
@@ -484,11 +601,15 @@ if __name__ == '__main__':
     _parser.add_argument('-e', '--epochs', type=int, default=1, help='Number of epochs to run in the neural net')
     _parser.add_argument('-v', '--verbose', type=int, default=1, help='Verbosity of model fitting ' +
                          '0: no output, 1: progress bar, 2: epoch only')
+    _parser.add_argument('-c', '--correlate', action='store_true', default=False,
+                         help='Perform correlation analysis')
+    _parser.add_argument('-T', '--runtest', action='store_true', default=False, 
+                         help='Run model against test data in database')
     _parser.add_argument('-Z', '--gpuid', type=int, default=None,
                          help='ID of the GPU to use (for none specified, skip this argument)')
     _args = _parser.parse_args()
 
     print(_args)
 
-    main(_args.gridfile, _args.folds, _args.epochs, _args.verbose, _args.gpuid)
+    main(_args.gridfile, _args.folds, _args.epochs, _args.verbose, _args.correlate, _args.runtest, _args.gpuid)
 
