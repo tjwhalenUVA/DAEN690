@@ -17,6 +17,10 @@ dbDisconnect(con)
 
 bias.levels <- c('left', 'left-center', 'least', 'right-center', 'right')
 
+#Duplicate articles ID
+dup.file <- sprintf("%s/%s/%s", getwd(), 'Article Collection', "duplicate_article_ids_test.csv")
+dup.articles <- read.csv(dup.file)
+
 #FULL DATA----
 # Count of Articles in Leaning Categories
 bias.cnt <-
@@ -31,12 +35,15 @@ bias.cnt <-
                                  'gray',
                                  'indianred1', 'firebrick')) +
     theme_grey() +
-    theme(legend.position = 'none') +
-    labs(x='Article Leaning', y='# of Articles') +
+    theme(legend.position = 'none',
+          axis.title = element_text(size = 14),
+          axis.text = element_text(size = 12)) +
+    labs(title = 'Full', x='Article Leaning', y='# of Articles') +
     scale_y_continuous(labels = comma)
 
 ggsave(filename='initial_lean_count.jpeg', plot=bias.cnt, 
-       path=plots.folder, device='jpeg', dpi=600)
+       path=plots.folder, device='jpeg', dpi=600,
+       width = 6, height = 5)
 
 # Count of Hyperpartisan Articles
 hyp.cnt <-
@@ -104,20 +111,23 @@ art.year.cnt <-
     rename(Leaning = bias) %>%
     ggplot() +
     geom_bar(aes(x=Year, y=n, fill=Leaning), position = 'stack', stat='identity') +
-    geom_vline(xintercept=2008.5, color='red') +
-    geom_text(aes(x=2007.5, y=35000, label='Cut Off Year (2009)'), color='red', angle=90) +
+    # geom_vline(xintercept=2008.5, color='red') +
+    # geom_text(aes(x=2007.5, y=35000, label='Cut Off Year (2009)'), color='red', angle=90) +
     scale_y_continuous(labels = comma) +
-    labs(y='# Articles', x='Year Article Published') +
+    labs(title='Full', y='# Articles', x='Year Article Published') +
     theme_gray() +
     scale_fill_manual(values = c('dodgerblue2', 'lightblue',
                                  'gray',
                                  'indianred1', 'firebrick')) +
     scale_x_continuous(breaks = seq(1985, 2018, 5)) +
     theme(legend.position = c(0.3, 0.6),
-          legend.background = element_rect(color = 'grey30'))
+          legend.background = element_rect(color = 'grey30'),
+          axis.title = element_text(size = 14),
+          axis.text = element_text(size = 12))
 
 ggsave(filename='initial_article_count_by_year.jpeg', plot=art.year.cnt, 
-       path=plots.folder, device='jpeg', dpi=600)
+       path=plots.folder, device='jpeg', dpi=600,
+       width = 8, height = 5)
 
 
 # Article Leaning vs Publication Year; Filled by Article Count
@@ -138,18 +148,21 @@ bias.yr.tile <-
     geom_hline(yintercept = seq(0.5, 5.5, 1), color='white') +
     geom_vline(xintercept = seq(1985.5, 2018.5, 1), color='white') +
     theme_classic() +
-    labs(x='Year Article Published', y='Leaning') +
+    labs(title='Full', x='Year Article Published', y='Leaning') +
     scale_x_continuous(breaks = seq(1985, 2019, 5)) +
     theme(axis.line = element_blank(),
-          axis.ticks = element_blank()) +
-    scale_fill_gradient(low='grey70', high='darkgreen') +
-    geom_vline(xintercept = 2008.5, color='red') +
-    geom_text(aes(x=2007.5, y='least',
-                  label='Cut Off Year (2009)'),
-              angle=90, color='red')
+          axis.ticks = element_blank(),
+          axis.title = element_text(size = 14),
+          axis.text = element_text(size = 12)) +
+    scale_fill_gradient(low='grey70', high='darkgreen') #+
+    # geom_vline(xintercept = 2008.5, color='red') +
+    # geom_text(aes(x=2007.5, y='least',
+    #               label='Cut Off Year (2009)'),
+    #           angle=90, color='red')
 
 ggsave(filename='initial_lean_vs_year_heatmap.jpeg', plot=bias.yr.tile, 
-       path=plots.folder, device='jpeg', dpi=600)
+       path=plots.folder, device='jpeg', dpi=600,
+       width = 8, height = 5)
 
 
 #FINAL DATA----
@@ -162,7 +175,8 @@ reduced.df <-
            bias_final = factor(bias_final, levels = bias.levels)) %>%
     filter(!is.na(`published-at`),
            Year >= 2009,
-           url_keep == 1)
+           url_keep == 1,
+           !(id %in% dup.articles$id.1))
 
 
 # Count of Articles in Leaning Categories
@@ -177,12 +191,15 @@ red.bias.cnt <-
                                  'gray',
                                  'indianred1', 'firebrick')) +
     theme_grey() +
-    theme(legend.position = 'none') +
-    labs(x='Article Leaning', y='# of Articles') +
+    theme(legend.position = 'none',
+          axis.title = element_text(size = 14),
+          axis.text = element_text(size = 12)) +
+    labs(title='Cleaned',x='Article Leaning', y='# of Articles') +
     scale_y_continuous(labels = comma)
 
 ggsave(filename='final_lean_count.jpeg', plot=red.bias.cnt, 
-       path=plots.folder, device='jpeg', dpi=600)
+       path=plots.folder, device='jpeg', dpi=600,
+       width = 6, height = 5)
 
 # Count of Hyperpartisan Articles
 red.hyp.cnt <-
@@ -249,20 +266,21 @@ red.art.year.cnt <-
     rename(Leaning = bias_final) %>%
     ggplot() +
     geom_bar(aes(x=Year, y=n, fill=Leaning), position = 'stack', stat='identity') +
-    geom_vline(xintercept=2008.5, color='red') +
-    geom_text(aes(x=2008, y=10000, label='Cut Off Year (2009)'), color='red', angle=90) +
-    scale_y_continuous(labels = comma) +
-    labs(y='# Articles', x='Year Article Published') +
+    # geom_vline(xintercept=2008.5, color='red') +
+    # geom_text(aes(x=2008, y=75000, label='Cut Off Year (2009)'), color='red', angle=90) +
+    scale_y_continuous(labels = scales::comma) +
+    labs(title='Cleaned', y='# Articles', x='Year Article Published') +
     theme_gray() +
     scale_fill_manual(values = c('dodgerblue2', 'lightblue',
                                  'gray',
                                  'indianred1', 'firebrick')) +
-    scale_x_continuous(breaks = seq(2009, 2019, 2)) +
-    theme(legend.position = c(0.3, 0.7),
-          legend.background = element_rect(color = 'grey30'))
+    scale_x_continuous(breaks = seq(2009, 2018, 2)) +
+    theme(axis.title = element_text(size = 14),
+          axis.text = element_text(size = 12))
 
 ggsave(filename='final_article_count_by_year.jpeg', plot=red.art.year.cnt, 
-       path=plots.folder, device='jpeg', dpi=600)
+       path=plots.folder, device='jpeg', dpi=600,
+       width = 6, height = 5)
 
 
 # Article Leaning vs Publication Year; Filled by Article Count
@@ -280,14 +298,17 @@ red.bias.yr.tile <-
     geom_hline(yintercept = seq(0.5, 5.5, 1), color='white') +
     geom_vline(xintercept = seq(2008.5, 2018.5, 1), color='white') +
     theme_classic() +
-    labs(x='Year Article Published', y='Leaning') +
+    labs(title='Cleaned', x='Year Article Published', y='Leaning') +
     scale_x_continuous(breaks = seq(2009, 2019, 2)) +
     theme(axis.line = element_blank(),
-          axis.ticks = element_blank()) +
+          axis.ticks = element_blank(),
+          axis.title = element_text(size = 14),
+          axis.text = element_text(size = 12)) +
     scale_fill_gradient(low='grey70', high='darkgreen')
 
 ggsave(filename='final_lean_vs_year_heatmap.jpeg', plot=red.bias.yr.tile, 
-       path=plots.folder, device='jpeg', dpi=600)
+       path=plots.folder, device='jpeg', dpi=600,
+       width = 6, height = 5)
 
 
 #Media Bias Fact Check----
@@ -334,12 +355,15 @@ mbfc.plot <-
     geom_segment(data = grid.df, aes(x=x, y=y, xend=xend, yend=yend)) +
     theme_classic() +
     theme(axis.line = element_blank(),
-          axis.ticks = element_blank()) +
+          axis.ticks = element_blank(),
+          axis.title = element_text(size=14),
+          axis.text = element_text(size = 12)) +
     scale_color_manual(values = c('grey30', 'purple', 'grey80')) +
     labs(x='mediabiasfactcheck.com Leaning', y='Zenodo Hyperpartisan\nDataset Leaning')
 
 ggsave(filename='mbfc_vs_zenodo.jpeg', plot=mbfc.plot, 
-       path=plots.folder, device='jpeg', dpi=600)
+       path=plots.folder, device='jpeg', dpi=600, 
+       width = 10, height = 3)
 
 disagree.df <-
     lean.df %>%
