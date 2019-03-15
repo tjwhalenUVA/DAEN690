@@ -26,7 +26,8 @@ from sklearn import metrics
  
 import gensim.models as g
 import codecs
-
+from nltk.cluster import KMeansClusterer
+import nltk
 
 
 # %%
@@ -55,30 +56,63 @@ _df.text = _df.text.str.lower()
 nonAlpha = re.compile('[^a-zA-Z]+')
 _df.text = _df.text.replace(nonAlpha, ' ')
 
-
 cachedStopWords = stopwords.words('english')
 _df.text = _df.text.apply(
                           lambda x: (' '.join([word for word in x.split() 
                           if word not in cachedStopWords])))
 
 #%%
+print('Tokenizing Articles')
+import gensim
 from nltk.tokenize import word_tokenize
-test1 = []
-for i in _df.text:
-    tokens = word_tokenize(i)
-    test1.append(tokens)
+raw_documents = _df.text
+gen_docs = [[w.lower() for w in word_tokenize(text)] for text in raw_documents]
     
 #%%
-from gensim.models import Word2Vec
 
-model = Word2Vec(test1, min_count=1)
+def sent_vectorizer(sent, model):
+    sent_vec =[]
+    numw = 0
+    for w in sent:
+        try:
+            if numw == 0:
+                sent_vec = model[w]
+            else:
+                sent_vec = np.add(sent_vec, model[w])
+            numw+=1
+        except:
+            pass
+     
+    return np.asarray(sent_vec) / numw
+
 #%%
 
+#%%#from gensim.models import Word2Vec
+#model = Word2Vec(test1, min_count=1)
+    
+from gensim.scripts.glove2word2vec import glove2word2vec
+glove_input_file = 'glove.6B.100d.txt'
+word2vec_output_file = 'glove.6B.100d.txt.word2vec'
+glove2word2vec(glove_input_file, word2vec_output_file)
+
+
+from gensim.test.utils import datapath, get_tmpfile
+from gensim.models import KeyedVectors
+from gensim.scripts.glove2word2vec import glove2word2vec
+
+
+>>>
+>>> glove_file = datapath('glove.6B.50d.txt')
+>>> tmp_file = get_tmpfile("test_word2vec.txt")
+>>>
+>>> _ = glove2word2vec(glove_file, tmp_file)
+>>>
+>>> model = KeyedVectors.load_word2vec_format(tmp_file)
+
+#%%
 X = model.wv
 
 
-from nltk.cluster import KMeansClusterer
-import nltk
 
 NUM_CLUSTERS=3
 kclusterer = KMeansClusterer(NUM_CLUSTERS, distance=nltk.cluster.util.cosine_distance, repeats=2)

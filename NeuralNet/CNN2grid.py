@@ -192,7 +192,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             # Load the data from the database
             _command = "SELECT cn.id, ln.bias_final, cn.text " + \
                        "FROM train_content cn, train_lean ln " + \
-                       "WHERE (cn.id < 200000) AND " + \
+                       "WHERE (cn.id < 50000) AND " + \
                        "(cn.`published-at` >= '2009-01-01') AND " + \
                              "(cn.id == ln.id) AND " + \
                              "(ln.url_keep == 1) AND " + \
