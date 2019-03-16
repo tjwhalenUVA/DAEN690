@@ -1,0 +1,6 @@
+,Predict Left,Predict Left-Center,Predict Least,Predict Right-Center,Predict Right
+Actual Left,3473,1644,142,373,871
+Actual Left-Center,782,5542,125,423,711
+Actual Least,210,494,7587,173,514
+Actual Right-Center,164,541,87,2676,364
+Actual Right,556,1251,334,406,10125

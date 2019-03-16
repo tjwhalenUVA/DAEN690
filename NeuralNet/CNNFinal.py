@@ -61,62 +61,62 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
                                         input_length=_padLength,
                                         trainable=False))
 
-    # Add a 1-dimensional convolution layer.  This layer slides a window of size 5 across the input
-    # and creates an output of shape
-    theModel.add(keras.layers.Conv1D(filters=10, kernel_size=5, activation='relu'))
-
-    theModel.add(keras.layers.Dropout(0.20))
-
-    theModel.add(keras.layers.MaxPool1D(pool_size=3))
-
-    theModel.add(keras.layers.Conv1D(filters=50, kernel_size=3, activation='relu'))
-
-    theModel.add(keras.layers.Dropout(0.20))
-
-    theModel.add(keras.layers.MaxPool1D(pool_size=2))
-
-    theModel.add(keras.layers.Conv1D(filters=150, kernel_size=5, activation='relu'))
-
-    theModel.add(keras.layers.Dropout(0.20))
-
-    theModel.add(keras.layers.MaxPool1D(pool_size=2))
-
-    theModel.add(keras.layers.Flatten())
-
-    theModel.add(keras.layers.Dense(units=50, activation='relu'))
-
-    theModel.add(keras.layers.Dropout(0.20))
-
-    theModel.add(keras.layers.Dense(units=5, activation='softmax'))
-
-
-
-    # # Add a 1-dimensional convolution layer.  This layer moves a window of size _cnnKernel across
-    # # the input and creates an output of length _cnnFilters for each window.
-    # theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel, activation=_convActivation))
+    # # Add a 1-dimensional convolution layer.  This layer slides a window of size 5 across the input
+    # # and creates an output of shape
+    # theModel.add(keras.layers.Conv1D(filters=10, kernel_size=5, activation='relu'))
     #
-    # # Add a max pooling layer.  This layer looks at the vectors contained in a window of size _cnnPool
-    # # and outputs the vector with the greatest L2 norm.
-    # theModel.add(keras.layers.MaxPool1D(pool_size=_cnnPool))
+    # theModel.add(keras.layers.Dropout(0.20))
     #
-    # # Add a flatten layer.  This layer removes reduces the output to a one-dimensional vector
-    # if _cnnFlatten:
-    #     theModel.add(keras.layers.Flatten())
+    # theModel.add(keras.layers.MaxPool1D(pool_size=3))
     #
-    # # Add a fully connected dense layer.  This layer adds a lot of nodes to the model to allow
-    # # for different features in the article to activate different groups of nodes.
-    # theModel.add(keras.layers.Dense(units=_cnnDense, activation=_denseActivation))
+    # theModel.add(keras.layers.Conv1D(filters=50, kernel_size=3, activation='relu'))
     #
-    # # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
-    # # during each training epoch.  Doing this prevents a small set of nodes doing all the
-    # # work while a bunch of other nodes sit around playing poker.
-    # if _cnnDropout > 0.0:
-    #     theModel.add(keras.layers.Dropout(_cnnDropout))
+    # theModel.add(keras.layers.Dropout(0.20))
     #
-    # # Add our output layer.  We have 5 classes of output "left", "left-center", "least",
-    # # "right-center", and "right".  This layer converts the inputs from the dense/dropout
-    # # layer into outputs for these 5 classes, essentially predicting the article leaning.
-    # theModel.add(keras.layers.Dense(5, activation=_outputActivation))
+    # theModel.add(keras.layers.MaxPool1D(pool_size=2))
+    #
+    # theModel.add(keras.layers.Conv1D(filters=150, kernel_size=5, activation='relu'))
+    #
+    # theModel.add(keras.layers.Dropout(0.20))
+    #
+    # theModel.add(keras.layers.MaxPool1D(pool_size=2))
+    #
+    # theModel.add(keras.layers.Flatten())
+    #
+    # theModel.add(keras.layers.Dense(units=50, activation='relu'))
+    #
+    # theModel.add(keras.layers.Dropout(0.20))
+    #
+    # theModel.add(keras.layers.Dense(units=5, activation='softmax'))
+
+
+
+    # Add a 1-dimensional convolution layer.  This layer moves a window of size _cnnKernel across
+    # the input and creates an output of length _cnnFilters for each window.
+    theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel, activation=_convActivation))
+
+    # Add a max pooling layer.  This layer looks at the vectors contained in a window of size _cnnPool
+    # and outputs the vector with the greatest L2 norm.
+    theModel.add(keras.layers.MaxPool1D(pool_size=_cnnPool))
+
+    # Add a flatten layer.  This layer removes reduces the output to a one-dimensional vector
+    if _cnnFlatten:
+        theModel.add(keras.layers.Flatten())
+
+    # Add a fully connected dense layer.  This layer adds a lot of nodes to the model to allow
+    # for different features in the article to activate different groups of nodes.
+    theModel.add(keras.layers.Dense(units=_cnnDense, activation=_denseActivation))
+
+    # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
+    # during each training epoch.  Doing this prevents a small set of nodes doing all the
+    # work while a bunch of other nodes sit around playing poker.
+    if _cnnDropout > 0.0:
+        theModel.add(keras.layers.Dropout(_cnnDropout))
+
+    # Add our output layer.  We have 5 classes of output "left", "left-center", "least",
+    # "right-center", and "right".  This layer converts the inputs from the dense/dropout
+    # layer into outputs for these 5 classes, essentially predicting the article leaning.
+    theModel.add(keras.layers.Dense(5, activation=_outputActivation))
 
     # Display a summary of our model
     if _summarize:
@@ -153,6 +153,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
     from tensorflow import keras
     import numpy as np
     from sklearn.model_selection import StratifiedKFold
+    from sklearn.metrics import confusion_matrix
 
     from sys import platform as sys_pf
     if sys_pf == 'darwin':
@@ -303,6 +304,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             # occurs at the beginning or end of an article, so we are removing the first and
             # last N words from each article.  Of course, this means that we are throwing out
             # any article of length 2N or less.
+            print('Removing first and last 50 words/tokens from each article')
             _N = 50
             _articleSequences = [x[_N:-_N] for x in _junk if len(x) > (2*_N)]
 
@@ -355,8 +357,31 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                 _leans = ['left', 'left-center', 'least', 'right-center', 'right']
                 _maxcor = np.max(_corArray, axis=0)
                 _maxcorI = np.argmax(_corArray, axis=0)
+                _topcorList = []
+                _topcorWords = []
                 for _i in range(len(_maxcor)):
                     print('Highest correlation for leaning "%s": %0.4f -- %s' % (_leans[_i], _maxcor[_i], t.index_word[_maxcorI[_i]]))
+                    _sortedcor = np.argsort(-_corArray[:,_i])
+                    _topcorList.append(_corArray[_sortedcor[:50],_i])
+                    _topcorWords.append([t.index_word[x] for x in _sortedcor[:50]])
+
+                _corFile = '%s_word_correlation.csv' % (len(_corArray)-1)
+                with open(_corFile, 'wt') as _cf:
+                    _cf.write('Left\tLeftCor\tLeft-Center\tLeft-CenterCor\tLeast\tLeastCor\tRight-Center\tRight-CenterCor\tRight\tRightCor\n')
+                    for _i in range(np.shape(_topcorWords)[1]):
+                        _cf.write('%s\t%0.8f\t%s\t%0.8f\t%s\t%0.8f\t%s\t%0.8f\t%s\t%0.8f\n' % (_topcorWords[0][_i],
+                                                                                               _topcorList[0][_i],
+                                                                                               _topcorWords[1][_i],
+                                                                                               _topcorList[1][_i],
+                                                                                               _topcorWords[2][_i],
+                                                                                               _topcorList[2][_i],
+                                                                                               _topcorWords[3][_i],
+                                                                                               _topcorList[3][_i],
+                                                                                               _topcorWords[4][_i],
+                                                                                               _topcorList[4][_i],
+                                                                                               ))
+
+
 
             # Build the embedding matrix for use in our neural net.  Initialize it to zeros.
             # The matrix has _vocabSize rows and _dimensions columns, and consists of a word
@@ -559,6 +584,24 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
     for _row in _dfGrid.itertuples():
         print(_row)
 
+    # Generate a confusion matrix for the last cross validation run
+    _valPred = model.predict(_articleSequencesPadded[_val], batch_size=128, verbose=1)
+    np.shape(_valPred)
+    np.shape(_leanVals[_val])
+    _trainConfusionMatrix = confusion_matrix(_leanVals[_val], np.argmax(_valPred, axis=1))
+    _leans = ['left', 'left-center', 'least', 'right-center', 'right']
+    with open('cnnTrainSetConfusionMatrix.txt', 'wt') as _outfile:
+        _outfile.write('\tPredict Left\tPredict Left-Center\tPredict Least\tPredict Right Center\tPredict Right\n')
+        _j = 0
+        for _r in _trainConfusionMatrix:
+            _outfile.write('%s\t%d\t%d\t%d\t%d\t%d\n' % (('Actual ' + _leans[_j]), _r[0], _r[1], _r[2], _r[3], _r[4]))
+            _j += 1
+    _trainOutput = list(zip(_df.id[_val], np.argmax(_valPred, axis=1), _leanVals[_val]))
+    with open('cnnTrainSetPredictionResults.txt', 'wt') as _outfile:
+        _outfile.write('ID\tPredicted Value\tActual Value\n')
+        for _r in _trainOutput:
+            _outfile.write('%d\t%d\t%d\n' % (_r[0], _r[1], _r[2]))
+
     if _runtest:
         print('Training on Full Training Set')
         # Construct the Tensorflow/keras model for a convolutional neural net
@@ -591,6 +634,19 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
         print(_testLean)
         print(_testPred)
         print(float(sum(_testLean == _testPred)) / float(len(_testPred)))
+        _testConfusionMatrix = confusion_matrix(_testLean, _testPred)
+        _leans = ['left', 'left-center', 'least', 'right-center', 'right']
+        with open('cnnTestSetConfusionMatrix.txt', 'wt') as _outfile:
+            _outfile.write('\tPredict Left\tPredict Left-Center\tPredict Least\tPredict Right Center\tPredict Right\n')
+            _j = 0
+            for _r in _testConfusionMatrix:
+                _outfile.write('%s\t%d\t%d\t%d\t%d\t%d\n' % (('Actual '+_leans[_j]), _r[0], _r[1], _r[2], _r[3], _r[4]))
+                _j += 1
+        _testOutput = list(zip(_dfx.id, _testPred, _testLean))
+        with open('cnnTestSetPredictionResults.txt', 'wt') as _outfile:
+            _outfile.write('ID\tPredicted Value\tActual Value\n')
+            for _r in _testOutput:
+                _outfile.write('%d\t%d\t%d\n' % (_r[0], _r[1], _r[2]))
 
 
 if __name__ == '__main__':

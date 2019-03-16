@@ -1,0 +1,17 @@
+id,dbFile,gloveFile,vocabSize,captureFraction,convolutionFilters,convolutionKernel,convolutionActivation,poolSize,flattenLayer,denseUnits,denseActivation,dropoutFraction,outputActivation,lossFunction
+8,./data/articles_zenodo.db,./data/glove.6B.50d.txt,1000,0.95,5,15,relu,5,True,25,relu,0.0,softmax,categorical_crossentropy
+9,./data/articles_zenodo.db,./data/glove.6B.50d.txt,1000,0.95,5,15,relu,5,True,25,relu,0.05,softmax,categorical_crossentropy
+10,./data/articles_zenodo.db,./data/glove.6B.50d.txt,1000,0.95,5,15,relu,5,True,50,relu,0.0,softmax,categorical_crossentropy
+11,./data/articles_zenodo.db,./data/glove.6B.50d.txt,1000,0.95,5,15,relu,5,True,50,relu,0.05,softmax,categorical_crossentropy
+12,./data/articles_zenodo.db,./data/glove.6B.50d.txt,1000,0.95,5,15,relu,10,True,25,relu,0.0,softmax,categorical_crossentropy
+13,./data/articles_zenodo.db,./data/glove.6B.50d.txt,1000,0.95,5,15,relu,10,True,25,relu,0.05,softmax,categorical_crossentropy
+14,./data/articles_zenodo.db,./data/glove.6B.50d.txt,1000,0.95,5,15,relu,10,True,50,relu,0.0,softmax,categorical_crossentropy
+15,./data/articles_zenodo.db,./data/glove.6B.50d.txt,1000,0.95,5,15,relu,10,True,50,relu,0.05,softmax,categorical_crossentropy
+72,./data/articles_zenodo.db,./data/glove.6B.50d.txt,2500,0.95,5,15,relu,5,True,25,relu,0.0,softmax,categorical_crossentropy
+73,./data/articles_zenodo.db,./data/glove.6B.50d.txt,2500,0.95,5,15,relu,5,True,25,relu,0.05,softmax,categorical_crossentropy
+74,./data/articles_zenodo.db,./data/glove.6B.50d.txt,2500,0.95,5,15,relu,5,True,50,relu,0.0,softmax,categorical_crossentropy
+75,./data/articles_zenodo.db,./data/glove.6B.50d.txt,2500,0.95,5,15,relu,5,True,50,relu,0.05,softmax,categorical_crossentropy
+76,./data/articles_zenodo.db,./data/glove.6B.50d.txt,2500,0.95,5,15,relu,10,True,25,relu,0.0,softmax,categorical_crossentropy
+77,./data/articles_zenodo.db,./data/glove.6B.50d.txt,2500,0.95,5,15,relu,10,True,25,relu,0.05,softmax,categorical_crossentropy
+78,./data/articles_zenodo.db,./data/glove.6B.50d.txt,2500,0.95,5,15,relu,10,True,50,relu,0.0,softmax,categorical_crossentropy
+79,./data/articles_zenodo.db,./data/glove.6B.50d.txt,2500,0.95,5,15,relu,10,True,50,relu,0.05,softmax,categorical_crossentropy
