@@ -27,7 +27,7 @@ _db = sqlite3.connect(_dbFile)
 print('Pulling article IDs, leanings, and text from database')
 q1 = """SELECT ln.id, ln.bias_final, cn.text
         FROM train_lean ln, train_content cn
-        WHERE cn.`published-at` >= '2015-01-01' AND ln.id == cn.id AND ln.url_keep='1'"""
+        WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id AND ln.url_keep='1'"""
 _df = pd.read_sql(q1, _db, columns=('id', 'lean', 'text'))
 _lean = pd.read_sql('select * from train_lean;', _db)
 
@@ -37,7 +37,7 @@ _lean = pd.read_sql('select * from train_lean;', _db)
 print('Pulling article IDs, leanings, and text from database')
 q2 = """SELECT ln.id, ln.bias_final, cn.text
         FROM test_lean ln, test_content cn
-        WHERE cn.`published-at` >= '2015-01-01' AND ln.id == cn.id """
+        WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id """
 test_df = pd.read_sql(q2, _db, columns=('id', 'lean', 'text'))
 test_lean = pd.read_sql('select * from train_lean;', _db)
 
@@ -93,6 +93,6 @@ text_clf_svm = Pipeline([('vect', CountVectorizer()),
                          ('tfidf', TfidfTransformer()),
                          ('clf-svm', SGDClassifier(loss='hinge', penalty='l2',
                                                    alpha=1e-3, n_iter=5, random_state=42)),])
-text_clf_svm = text_clf_svm.fit(xTrain, yTrain)
+text_clf_svm = text_clf_svm.fit(_df.text, _df.bias_final)
 predicted_svm = text_clf_svm.predict(test_df.text)
 np.mean(predicted_svm == test_df.bias_final )
