@@ -58,3 +58,15 @@ from collections import Counter
 for p, ws in _pubs_dic.items():
     print(p)
     _pubs_wc[p] = dict(Counter(ws))
+    
+#%%
+
+words = list(_pubs_wc['foxbusiness'].keys())
+counts = [_pubs_wc['foxbusiness'][x] for x in words]
+indices = np.argsort(-np.array(counts))
+
+sorted_list = [(words[i],counts[i]) for i in indices]
+
+for i in indices:
+    print('Word: %s\t Count:%d' % (words[i],counts[i]))
+    
