@@ -27,7 +27,7 @@ _db = sqlite3.connect(_dbFile)
 print('Pulling article IDs, leanings, and text from database')
 q1 = """SELECT ln.id, ln.bias_final, cn.text
         FROM train_lean ln, train_content cn
-        WHERE cn.`published-at` >= '2018-01-01' AND ln.id == cn.id AND ln.url_keep='1'"""
+        WHERE cn.`published-at` >= '2015-01-01' AND ln.id == cn.id AND ln.url_keep='1'"""
 _df = pd.read_sql(q1, _db, columns=('id', 'lean', 'text'))
 _lean = pd.read_sql('select * from train_lean;', _db)
 
@@ -37,7 +37,7 @@ _lean = pd.read_sql('select * from train_lean;', _db)
 print('Pulling article IDs, leanings, and text from database')
 q2 = """SELECT ln.id, ln.bias_final, cn.text
         FROM test_lean ln, test_content cn
-        WHERE cn.`published-at` >= '2016-01-01' AND ln.id == cn.id """
+        WHERE cn.`published-at` >= '2015-01-01' AND ln.id == cn.id """
 test_df = pd.read_sql(q2, _db, columns=('id', 'lean', 'text'))
 test_lean = pd.read_sql('select * from train_lean;', _db)
 
@@ -51,26 +51,26 @@ test_lean['source'] = test_lean.url.str.split('//', expand=True, n=1)[1].str.spl
 
 #%%
 
-from sklearn.model_selection import train_test_split
-xTrain, xTest, yTrain, yTest = train_test_split(_df.text, _df.bias_final, test_size = 0.2, random_state = 0)
+#from sklearn.model_selection import train_test_split
+#xTrain, xTest, yTrain, yTest = train_test_split(_df.text, _df.bias_final, test_size = 0.2, random_state = 0)
 
 #%%
 
-from sklearn.feature_extraction.text import CountVectorizer
-count_vect = CountVectorizer()
-X_train_counts = count_vect.fit_transform(xTrain)
-X_train_counts.shape
+#from sklearn.feature_extraction.text import CountVectorizer
+#count_vect = CountVectorizer()
+#X_train_counts = count_vect.fit_transform(_df.text)
+#X_train_counts.shape
 # %%
 
-from sklearn.feature_extraction.text import TfidfTransformer
-tfidf_transformer = TfidfTransformer()
-X_train_tfidf = tfidf_transformer.fit_transform(X_train_counts)
-X_train_tfidf.shape
+#from sklearn.feature_extraction.text import TfidfTransformer
+#tfidf_transformer = TfidfTransformer()
+#X_train_tfidf = tfidf_transformer.fit_transform(X_train_counts)
+#X_train_tfidf.shape
 
 #%%
 
-from sklearn.naive_bayes import MultinomialNB
-clf = MultinomialNB().fit(X_train_tfidf, yTrain)
+#from sklearn.naive_bayes import MultinomialNB
+#clf = MultinomialNB().fit(X_train_tfidf, yTrain)
 
 #%%
 
@@ -78,13 +78,13 @@ from sklearn.pipeline import Pipeline
 text_clf = Pipeline([('vect', CountVectorizer()),
                      ('tfidf', TfidfTransformer()),
                      ('clf', MultinomialNB()),])
-text_clf = text_clf.fit(xTrain, yTrain)
+text_clf = text_clf.fit(_df.text, _df.bias_final)
 
 #%%
 
 import numpy as np
-predicted = text_clf.predict(xTest)
-np.mean(predicted == yTest)
+predicted = text_clf.predict(test_df.text)
+np.mean(predicted == test_df.bias_final)
 
 #%%
 
