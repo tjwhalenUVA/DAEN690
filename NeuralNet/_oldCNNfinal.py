@@ -1,4 +1,4 @@
-#! /Users/dpbrinegar/anaconda3/envs/gitHub/bin/python
+#! /usr/bin/python
 # -*- coding: utf-8 -*-
 #
 # Author:  Paul M. Brinegar, II
@@ -93,16 +93,7 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
 
     # Add a 1-dimensional convolution layer.  This layer moves a window of size _cnnKernel across
     # the input and creates an output of length _cnnFilters for each window.
-#    theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel, activation=_convActivation))
-    theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel,
-                                     activation=_convActivation,
-                                     kernel_regularizer=keras.regularizers.l2(0.02)))
-
-    # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
-    #     # during each training epoch.  Doing this prevents a small set of nodes doing all the
-    #     # work while a bunch of other nodes sit around playing poker.
-    if _cnnDropout > 0.0:
-        theModel.add(keras.layers.Dropout(_cnnDropout))
+    theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel, activation=_convActivation))
 
     # Add a max pooling layer.  This layer looks at the vectors contained in a window of size _cnnPool
     # and outputs the vector with the greatest L2 norm.
@@ -114,8 +105,7 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
 
     # Add a fully connected dense layer.  This layer adds a lot of nodes to the model to allow
     # for different features in the article to activate different groups of nodes.
-    theModel.add(keras.layers.Dense(units=_cnnDense, activation=_denseActivation,
-                                    kernel_regularizer=keras.regularizers.l2(0.2)))
+    theModel.add(keras.layers.Dense(units=_cnnDense, activation=_denseActivation))
 
     # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
     # during each training epoch.  Doing this prevents a small set of nodes doing all the
@@ -225,10 +215,10 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             _db = sqlite3.connect(_row.dbFile)
             _cur = _db.cursor()
 
-            # Load the training set data from the database
-            _command = "SELECT cn.id, ln.bias_final, cn.text, ln.url " + \
+            # Load the data from the database
+            _command = "SELECT cn.id, ln.bias_final, cn.text " + \
                        "FROM train_content cn, train_lean ln " + \
-                       "WHERE (cn.id < 999999) AND " + \
+                       "WHERE (cn.id < 999999999) AND " + \
                        "(cn.`published-at` >= '2009-01-01') AND " + \
                              "(cn.id == ln.id) AND " + \
                              "(ln.url_keep == 1) AND " + \
@@ -238,12 +228,10 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                                                   "(a.text == b.text)));"
 
             _cur.execute(_command)
-            _df = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text', 'url'))
-
-            # load the test set data from the database
-            _command = "SELECT cn.id, ln.bias_final, cn.text, ln.url " + \
+            _df = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text'))
+            _command = "SELECT cn.id, ln.bias_final, cn.text " + \
                        "FROM test_content cn, test_lean ln " + \
-                       "WHERE (cn.id < 999999) AND " + \
+                       "WHERE (cn.id < 999999999) AND " + \
                        "(cn.`published-at` >= '2009-01-01') AND " + \
                              "(cn.id == ln.id) AND " + \
                              "(ln.url_keep == 1) AND " + \
@@ -253,7 +241,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                                                   "(a.text == b.text)));"
 
             _cur.execute(_command)
-            _dfx = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text', 'url'))
+            _dfx = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text'))
             _db.close()
             print('%s training records read from database' % len(_df))
             print('%s test records read from database' % len(_dfx))
@@ -288,64 +276,12 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
 
         # Repprocess the input data (if necessary)
         if _flag:
-            # If we wish to exclude certain publishers from the training set,
-            # remove them here.  Publishers are exlucded by their primary URL
-            # address (e.g. AP News would be 'apnews', Albuquerque Journal would
-            # be 'abqjournal'.
-            print('Excluding specific publishers due to strongly biasing the model')
-            _excludePublishers = ['apnews', 'foxbusiness']
-            _excludeString = '|'.join(_excludePublishers)
-            _df = _df[~_df['url'].str.contains(_excludeString)]
-
             _vocabSize = _row.vocabSize
             # Tokenize the articles to create a {word:index} dictionary.  The variable _vocabSize
-            # can be any size we wish.  We set a token for out-of-vocabulary words.  We start with
-            # a vocabulary size much larger than we intend to actually use, to allow for removal
-            # of various words/characters that we don't want to include.  NOTE:  keras does not
-            # seem to do much with the num_words argument, as it does not truncate its dictionaries
-            # during tokenizing.
+            # can be any size we wish.  We set a token for out-of-vocabulary words.
             print('Tokenizing corpus of articles and building vocabulary')
             t = keras.preprocessing.text.Tokenizer(oov_token="<OOV>", num_words=_vocabSize)
             t.fit_on_texts(_df.text)
-
-            # Remove certain words from the vocabulary... single character "words", numbers,
-            # specific words that the neural net is probably keying on, etc.
-            print('Removing specific words that act as tipping/cueing for the model')
-            print('Removing numbers and "words" of length 1')
-            _j = 2
-            _wordCount = 2
-            _excludeWords = ['reuters', 'advertisement']
-            while _wordCount <= min([5 * _vocabSize, len(t.index_word)]):
-                _flag = False
-                _word = t.index_word[_j]
-
-                # "words" of length 1 get removed from the vocabulary
-                if len(_word) == 1:
-                    print('%s - Removing %s:  Word is only one character in length' % (_j,_word))
-                    _flag = True
-
-                # numbers get removed from the vocabulary
-                junk = None
-                try:
-                    junk = int(_word)
-                except ValueError:
-                    pass
-                if junk is not None:
-                    print('%s - Removing %s:  Word is a number' % (_j,_word))
-                    _flag = True
-
-                # words that are tips/cues to the neural net
-                if _word in _excludeWords:
-                    print('%s - Removing %s:  Word is in the tip/cue list' % (_j,_word))
-                    _flag = True
-
-                if _flag:
-                    del t.word_index[_word]
-                else:
-                    t.index_word[_wordCount] = _word
-                    t.word_index[_word] = _wordCount
-                    _wordCount += 1
-                _j += 1
 
             # The tokenizer in keras fails to create its {word:index} dictionary properly.  Words
             # with indices larger than the vocabulary size are retained, so we must rebuild the
@@ -358,34 +294,9 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             # Sequence the articles to convert them to a list of lists where each inner list
             # contains a serquence of word indices.  Store in temporary _junk variable.
             print('Converting each article into a sequence of word indices')
-            _tempSequences = t.texts_to_sequences(_df.text.values)
-            _sequenceLengths = [len(x) for x in _tempSequences]
-            _df = _df.assign(length=_sequenceLengths)
-
-            # Remove certain phrases that we think might be tipping/cueing for the neural net.
-            print('Excluding certain phrases which may be tipping/cueing the model')
-            _excludePhrases = ['the thomson reuters trust principles',
-                               'our standards',
-                               'continue reading below']
-            _excludeSequences = t.texts_to_sequences(_excludePhrases)
-            _phraseID = 0
-            for _seq in _excludeSequences:
-                _seqLen = len(_seq)
-                _nullSeq = [1] * _seqLen
-                _j = 0
-                _repCount = 0
-                _seqCount = 0
-                for _tempseq in _tempSequences:
-                    _seqPos = [(x, x + _seqLen) for x in range(len(_tempseq)) if _tempseq[x:x + _seqLen] == _seq]
-                    if _seqPos:
-                        for _pos in _seqPos:
-                            _tempSequences[_j][_pos[0]:_pos[1]] = _nullSeq
-                            _repCount += 1
-                        _seqCount += 1
-                    _j += 1
-                print('    Removed %d instances of "%s" from %d articles' % (_repCount, _excludePhrases[_phraseID],
-                                                                             _seqCount))
-                _phraseID += 1
+            _junk = t.texts_to_sequences(_df.text.values)
+            _junklen = [len(x) for x in _junk]
+            _df = _df.assign(length=_junklen)
 
             # It is possible that articles contain publisher information or bylines that are
             # highly correlated with the leaning (since leaning is assigned by-publisher).
@@ -395,7 +306,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             # any article of length 2N or less.
             print('Removing first and last 50 words/tokens from each article')
             _N = 50
-            _articleSequences = [x[_N:-_N] for x in _tempSequences if len(x) > (2*_N)]
+            _articleSequences = [x[_N:-_N] for x in _junk if len(x) > (2*_N)]
 
             # We shouldn't have to truncate the test data since we're not training on it
             _testarticleSequences = t.texts_to_sequences(_dfx.text.values)
@@ -413,8 +324,6 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                                                                                      padding='post')
             print('    Length of training set articles: %s' % _padLength)
             print('    Number of training set articles: %s' % len(_articleSequencesPadded))
-            print('    Length of test set articles: %s' % _padLength)
-            print('    Number of test set articles: %s' % len(_testarticleSequencesPadded))
 
             # Determine how much correlation there is between each word in the vocabulary
             # and article leaning.  The result should be an N by 5 matrix, where N is
@@ -437,7 +346,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                 ss_yy = _sy - np.square(_sy) / float(len(_leanArray))
                 for _i in t.index_word.keys():
                     print('Computing correlation for word %s: %s' % (_i, t.index_word[_i]))
-                    _presence = np.array([[int(_i in x) for x in _tempSequences], ] * len(_leanValuesDict)).transpose()
+                    _presence = np.array([[int(_i in x) for x in _junk], ] * len(_leanValuesDict)).transpose()
                     _sx = np.sum(_presence, axis=0)
                     ss_xx = _sx - np.square(_sx) / float(len(_leanArray))
 
@@ -578,14 +487,6 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                 _floss.append(_historyDict['loss'])
                 _fval_loss.append(_historyDict['val_loss'])
 
-                # Remove the current model from the tensorflow backend to prepare for the next fold.
-                # Also remove the model from keras, and perform some garbage cleanup.
-                keras.backend.clear_session()
-                del model
-                junk = gc.collect()
-                print('Garbage Collection: %s objects collected' % junk)
-
-
             else:
                 if j == 1:
                     print('Training and Validating Model')
@@ -633,6 +534,12 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             _minEpoch = np.argmin(np.mean(np.matrix(_fval_loss), axis=0).tolist()[0]) + 1
             _minRow = _row
 
+        # Remove the current model from the tensorflow backend to prepare for the next model.
+        # Also remove the model from keras, and perform some garbage cleanup.
+        keras.backend.clear_session()
+        del model
+        junk = gc.collect()
+        print('Garbage Collection: %s objects collected' % junk)
 
     print('\n\n')
     print('Parameter Combinations Processed:')
@@ -689,7 +596,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
         for _r in _trainConfusionMatrix:
             _outfile.write('%s\t%d\t%d\t%d\t%d\t%d\n' % (('Actual ' + _leans[_j]), _r[0], _r[1], _r[2], _r[3], _r[4]))
             _j += 1
-    _trainOutput = list(zip(_df.iloc[_val].id, np.argmax(_valPred, axis=1), _leanVals[_val]))
+    _trainOutput = list(zip(_df.id[_val], np.argmax(_valPred, axis=1), _leanVals[_val]))
     with open('cnnTrainSetPredictionResults.txt', 'wt') as _outfile:
         _outfile.write('ID\tPredicted Value\tActual Value\n')
         for _r in _trainOutput:
@@ -718,7 +625,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
 
         print('Applying Model to Full Test Set')
         print(_testarticleSequencesPadded)
-        _predictions = model.predict(_testarticleSequencesPadded, batch_size = 128, verbose=1)
+        _predictions = model.predict(_testarticleSequencesPadded)
         print(_predictions)
         print(_testarticleSequencesPadded.shape)
 
