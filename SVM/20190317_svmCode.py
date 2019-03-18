@@ -121,7 +121,7 @@ pipe_svm = Pipeline([('vect', CountVectorizer()),
 
 # use a full grid over all parameters
 param_grid = {'clf-svm': [SGDClassifier()],
-                            "clf-svm__n_iter": [1, 5, 10],
+                            "clf-svm__max_iter": [1, 5, 10],
                             "clf-svm__alpha": [0.0001, 0.001, 0.01, 0.1, 1, 10, 100],
                             "clf-svm__penalty": ["none", "l1", "l2"]}
  
