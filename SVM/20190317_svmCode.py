@@ -48,34 +48,26 @@ test_lean['source'] = test_lean.url.str.split('//', expand=True, n=1)[1].str.spl
 
 #%%
 
-#from sklearn.model_selection import train_test_split
-#xTrain, xTest, yTrain, yTest = train_test_split(_df.text, _df.bias_final, test_size = 0.2, random_state = 0)
-
-#%%
-
-#from sklearn.feature_extraction.text import CountVectorizer
-#count_vect = CountVectorizer()
-#X_train_counts = count_vect.fit_transform(_df.text)
-#X_train_counts.shape
-# %%
-
-#from sklearn.feature_extraction.text import TfidfTransformer
-#tfidf_transformer = TfidfTransformer()
-#X_train_tfidf = tfidf_transformer.fit_transform(X_train_counts)
-#X_train_tfidf.shape
-
-#%%
-
-#from sklearn.naive_bayes import MultinomialNB
-#clf = MultinomialNB().fit(X_train_tfidf, yTrain)
-
-#%%
-
 from sklearn.pipeline import Pipeline
-text_clf = Pipeline([('vect', CountVectorizer()),
+pipe_mnb = Pipeline([('vect', CountVectorizer()),
                      ('tfidf', TfidfTransformer()),
-                     ('clf', MultinomialNB()),])
-text_clf = text_clf.fit(_df.text, _df.bias_final)
+                     ('clf-mnb', MultinomialNB()),])
+
+# use a full grid over all parameters
+param_grid_mnb = {'clf-mnb': [MultinomialNB()],
+                            "clf-mnb__alpha": [0, 0.25, 0.50, 1]}
+ 
+
+grid_search_mnb = GridSearchCV(pipe_mnb, param_grid=param_grid_mnb, scoring='accuracy')
+start = time()
+grid_search_mnb.fit(_df.text, _df.bias_final)
+
+ 
+print("GridSearchCV took %.2f seconds for %d candidate parameter settings."
+      % (time() - start, len(grid_search_mnb.grid_scores_)))
+report(grid_search_mnb.grid_scores_)
+
+#text_clf = text_clf.fit(_df.text, _df.bias_final)
 
 #%%
 
@@ -123,7 +115,8 @@ pipe_svm = Pipeline([('vect', CountVectorizer()),
 param_grid = {'clf-svm': [SGDClassifier()],
                             "clf-svm__max_iter": [1, 5, 10],
                             "clf-svm__alpha": [0.0001, 0.001, 0.01, 0.1, 1, 10, 100],
-                            "clf-svm__penalty": ["none", "l1", "l2"]}
+                            "clf-svm__penalty": ["none", "l1", "l2"],
+                            "clf-svm__n_jobs": [-1]}
  
 # run grid search
 grid_search = GridSearchCV(pipe_svm, param_grid=param_grid, scoring='accuracy')
@@ -133,3 +126,28 @@ grid_search.fit(_df.text, _df.bias_final)
 print("GridSearchCV took %.2f seconds for %d candidate parameter settings."
       % (time() - start, len(grid_search.grid_scores_)))
 report(grid_search.grid_scores_)
+
+text_clf_svm = Pipeline([('vect', CountVectorizer()),
+                         ('tfidf', TfidfTransformer()),
+                         ('clf-svm', SGDClassifier(alpha=0.0001, 
+                           average=False, 
+                           class_weight=None, 
+                           epsilon=0.1,
+                           eta0=0.0,
+                           fit_intercept=True,
+                           l1_ratio=0.15,
+                           learning_rate='optimal',
+                           loss='hinge',
+                           max_iter=None,
+                           n_iter=100,
+                           n_jobs=1,
+                           penalty='none',
+                           power_t=0.5,
+                           random_state=None,
+                           shuffle=True,
+                           tol=None,
+                           verbose=0,
+                           warm_start=False)),])
+text_clf_svm = text_clf_svm.fit(_df.text, _df.bias_final)
+predicted_svm = text_clf_svm.predict(test_df.text)
+np.mean(predicted_svm == test_df.bias_final )
