@@ -25,7 +25,7 @@ _db = sqlite3.connect(_dbFile)
 # Pull the relevant bits of data out of the database and
 # store them in a pandas dataframe.
 print('Pulling article IDs, leanings, and text from database')
-q1 = """SELECT ln.id, ln.bias_final, cn.text
+q1 = """SELECT ln.id, ln.bias_final, cn.text, ln.url
         FROM train_lean ln, train_content cn
         WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id AND ln.url_keep='1'"""
 _df = pd.read_sql(q1, _db, columns=('id', 'lean', 'text'))
@@ -35,20 +35,29 @@ _lean = pd.read_sql('select * from train_lean;', _db)
 # Pull the relevant bits of data out of the database and
 # store them in a pandas dataframe.
 print('Pulling article IDs, leanings, and text from database')
-q2 = """SELECT ln.id, ln.bias_final, cn.text
+q2 = """SELECT ln.id, ln.bias_final, cn.text, ln.url
         FROM test_lean ln, test_content cn
         WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id """
 test_df = pd.read_sql(q2, _db, columns=('id', 'lean', 'text'))
 test_lean = pd.read_sql('select * from test_lean;', _db)
 
-#%% Source to article ID mapping
 
-_lean['source'] = _lean.url.str.split('//', expand=True, n=1)[1].str.split('.', expand=True, n=1)[0]
-test_lean['source'] = test_lean.url.str.split('//', expand=True, n=1)[1].str.split('.', expand=True, n=1)[0]
+
 
 #%%
 
+print('Excluding specific publishers due to strongly biasing the model')
+_excludePublishers = ['NULL']
+_excludePublishers = ['apnews', 'foxbusiness']
+_excludeString = '|'.join(_excludePublishers)
+_df = _df[~_df['url'].str.contains(_excludeString)]
+
+#%%
+from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.pipeline import Pipeline
+from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.naive_bayes import MultinomialNB
+
 pipe_mnb = Pipeline([('vect', CountVectorizer()),
                      ('tfidf', TfidfTransformer()),
                      ('clf-mnb', MultinomialNB()),])
@@ -66,6 +75,14 @@ grid_search_mnb.fit(_df.text, _df.bias_final)
 print("GridSearchCV took %.2f seconds for %d candidate parameter settings."
       % (time() - start, len(grid_search_mnb.grid_scores_)))
 report(grid_search_mnb.grid_scores_)
+
+
+text_clf_mnb = Pipeline([('vect', CountVectorizer()),
+                         ('tfidf', TfidfTransformer()),
+                         ('clf-mnb', MultinomialNB()),])
+text_clf_mnb = text_clf_mnb.fit(_df.text, _df.bias_final)
+predicted_mnb = text_clf_mnb.predict(test_df.text)
+np.mean(predicted_mnb == test_df.bias_final )
 
 #text_clf = text_clf.fit(_df.text, _df.bias_final)
 
