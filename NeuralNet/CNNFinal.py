@@ -152,6 +152,8 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
         os.environ['CUDA_VISIBLE_DEVICES'] = '%s' % _GPUid
 
+    import time
+
     import gc
 
     import sqlite3
@@ -172,6 +174,9 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
         import matplotlib.pyplot as plt
     else:
         import matplotlib.pyplot as plt
+
+    # Let's begin!
+    _t0 = time.time()
 
     # Initialize some variables that affect when to re-load and re-process the input files
     oldDbFile = None
@@ -197,6 +202,8 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                               'dropoutFraction': float,
                               'outputActivation': str,
                               'lossFunction': str})
+    _t1 = time.time()
+    print('\nGrid search file load time: %0.3f\tTotal time elapsed: %0.3f seconds\n' % (_t1 - _t0, _t1 - _t0))
 
     # Start the grid search
     _idBase = min(_dfGrid.id)
@@ -228,8 +235,8 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             # Load the training set data from the database
             _command = "SELECT cn.id, ln.bias_final, cn.text, ln.url " + \
                        "FROM train_content cn, train_lean ln " + \
-                       "WHERE (cn.id < 999999) AND " + \
-                       "(cn.`published-at` >= '2009-01-01') AND " + \
+                       "WHERE (cn.id < 599999) AND " + \
+                       "(cn.`published-at` >= '2014-01-01') AND " + \
                              "(cn.id == ln.id) AND " + \
                              "(ln.url_keep == 1) AND " + \
                              "(cn.id NOT IN (SELECT a.id " + \
@@ -243,8 +250,8 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             # load the test set data from the database
             _command = "SELECT cn.id, ln.bias_final, cn.text, ln.url " + \
                        "FROM test_content cn, test_lean ln " + \
-                       "WHERE (cn.id < 999999) AND " + \
-                       "(cn.`published-at` >= '2009-01-01') AND " + \
+                       "WHERE (cn.id < 999999999) AND " + \
+                       "(cn.`published-at` >= '2014-01-01') AND " + \
                              "(cn.id == ln.id) AND " + \
                              "(ln.url_keep == 1) AND " + \
                              "(cn.id NOT IN (SELECT a.id " + \
@@ -257,6 +264,10 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             _db.close()
             print('%s training records read from database' % len(_df))
             print('%s test records read from database' % len(_dfx))
+
+            _t2 = time.time()
+            print('\nDatabase query time: %0.3f\tTotal time elapsed: %0.3f seconds' % (_t2 - _t1, _t2 - _t0))
+            print('Database query time only valid for first time query is made\n')
 
         # If we are reading in a new GloVe global word vector file, here's where we do it.  This creates a
         # {word: vector} dictionary for every word in the GloVe input file.
@@ -278,6 +289,9 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                     _junk = _gfRow.split()
                     _embeddingDict[_junk[0]] = np.array(_junk[1:], dtype='float32')
 
+            _t3 = time.time()
+            print('\nGloVe file load time: %0.3f\tTotal time elapsed: %0.3f seconds\n' % (_t3 - _t2, _t3 - _t0))
+
         if _row.vocabSize != oldVocabSize:
             _flag = True
             oldVocabSize = _row.vocabSize
@@ -293,11 +307,15 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             # address (e.g. AP News would be 'apnews', Albuquerque Journal would
             # be 'abqjournal'.
             print('Excluding specific publishers due to strongly biasing the model')
+            _excludePublishers = ['NULL']
             _excludePublishers = ['apnews', 'foxbusiness']
             _excludeString = '|'.join(_excludePublishers)
             _df = _df[~_df['url'].str.contains(_excludeString)]
 
             _vocabSize = _row.vocabSize
+
+            _t4 = time.time()
+
             # Tokenize the articles to create a {word:index} dictionary.  The variable _vocabSize
             # can be any size we wish.  We set a token for out-of-vocabulary words.  We start with
             # a vocabulary size much larger than we intend to actually use, to allow for removal
@@ -307,6 +325,10 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             print('Tokenizing corpus of articles and building vocabulary')
             t = keras.preprocessing.text.Tokenizer(oov_token="<OOV>", num_words=_vocabSize)
             t.fit_on_texts(_df.text)
+
+            _t5 = time.time()
+            print('\nTokenizing time: %0.3f\tTotal time elapsed: %0.3f seconds\n' % (_t5 - _t4, _t5 - _t0))
+
 
             # Remove certain words from the vocabulary... single character "words", numbers,
             # specific words that the neural net is probably keying on, etc.
@@ -355,12 +377,17 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             t.index_word = {index: word for index, word in t.index_word.items() if index <= _vocabSize}
             _vocabSize = max([index for index, word in t.index_word.items()]) + 1   # corrects for one-based indexing
 
+            _t6 = time.time()
+
             # Sequence the articles to convert them to a list of lists where each inner list
             # contains a serquence of word indices.  Store in temporary _junk variable.
             print('Converting each article into a sequence of word indices')
             _tempSequences = t.texts_to_sequences(_df.text.values)
             _sequenceLengths = [len(x) for x in _tempSequences]
             _df = _df.assign(length=_sequenceLengths)
+
+            _t7 = time.time()
+            print('\nSequence conversion time: %0.3f\tTotal time elapsed: %0.3f seconds\n' % (_t7 - _t6, _t7 - _t0))
 
             # Remove certain phrases that we think might be tipping/cueing for the neural net.
             print('Excluding certain phrases which may be tipping/cueing the model')
@@ -400,6 +427,8 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             # We shouldn't have to truncate the test data since we're not training on it
             _testarticleSequences = t.texts_to_sequences(_dfx.text.values)
 
+            _t8 = time.time()
+
             # Truncate/pad each article to a uniform length.  We wish to capture at least 90% of
             # the articles in their entirety.  Padding will be performed at the end of the article.
             print('Performing article padding/truncation to make all articles a uniform length')
@@ -416,11 +445,16 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             print('    Length of test set articles: %s' % _padLength)
             print('    Number of test set articles: %s' % len(_testarticleSequencesPadded))
 
+            _t9 = time.time()
+            print('\nSequence padding time: %0.3f\tTotal time elapsed: %0.3f seconds\n' % (_t9 - _t8, _t9 - _t0))
+
             # Determine how much correlation there is between each word in the vocabulary
             # and article leaning.  The result should be an N by 5 matrix, where N is
             # the number of words/tokens in the vocabulary -- 5 columns, one for each
             # category of leaning.
             if _correlate:
+                _t10 = time.time()
+                print('Computing word correlations')
                 _leanValuesDict = {'left': 0,
                                    'left-center': 1,
                                    'least': 2,
@@ -472,7 +506,8 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                                                                                                _topcorList[4][_i],
                                                                                                ))
 
-
+                _t11 = time.time()
+                print('\nCorrelation computation time: %0.3f\tTotal time elapsed: %0.3f seconds\n' % (_t11 - _t10, _t11 - _t0))
 
             # Build the embedding matrix for use in our neural net.  Initialize it to zeros.
             # The matrix has _vocabSize rows and _dimensions columns, and consists of a word
@@ -531,6 +566,8 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
         # class in both the training and test/validation set.  Thus we don't end
         # up with a horribly imbalanced set as part of our cross validation.
         #
+        _t12 = time.time()
+
         if _numFolds == 0:
             _foldFlag = False
             _numFolds = 10
@@ -581,7 +618,8 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                 # Remove the current model from the tensorflow backend to prepare for the next fold.
                 # Also remove the model from keras, and perform some garbage cleanup.
                 keras.backend.clear_session()
-                del model
+                if j < _numFolds:
+                    del model
                 junk = gc.collect()
                 print('Garbage Collection: %s objects collected' % junk)
 
@@ -633,6 +671,8 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             _minEpoch = np.argmin(np.mean(np.matrix(_fval_loss), axis=0).tolist()[0]) + 1
             _minRow = _row
 
+        _t13 = time.time()
+        print('\nTraining/validation time: %0.3f\tTotal time elapsed: %0.3f seconds\n' % (_t13 - _t12, _t13 - _t0))
 
     print('\n\n')
     print('Parameter Combinations Processed:')
@@ -696,6 +736,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             _outfile.write('%d\t%d\t%d\n' % (_r[0], _r[1], _r[2]))
 
     if _runtest:
+        _t14 = time.time()
         print('Training on Full Training Set')
         # Construct the Tensorflow/keras model for a convolutional neural net
         model = constructModel(_vocabSize=_vocabSize, _dimensions=_dimensions, _embeddingMatrix=_embeddingMatrix,
@@ -740,6 +781,11 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             _outfile.write('ID\tPredicted Value\tActual Value\n')
             for _r in _testOutput:
                 _outfile.write('%d\t%d\t%d\n' % (_r[0], _r[1], _r[2]))
+        _t15 = time.time()
+        print('\nTest set evaluation time: %0.3f\tTotal time elapsed: %0.3f seconds\n' % (_t15 - _t14, _t15 - _t0))
+
+    _t99 = time.time()
+    print('\n\nRun completed.  Total time: %0.3f seconds' % (_t99 - _t0))
 
 
 if __name__ == '__main__':
