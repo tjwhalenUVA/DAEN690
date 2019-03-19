@@ -2,7 +2,6 @@ library(DBI)
 library(RSQLite)
 library(tidyverse)
 library(gridExtra)
-library(rstudioapi)
 library(scales)
 library(magrittr)
 
@@ -371,3 +370,39 @@ disagree.df <-
     lean.df %>%
     mutate(match = ifelse(mbfc == zenodo, 'yes', 'no')) %>%
     filter(match == 'no' | is.na(match))
+
+#Publisher Article Count Distribution
+reduced.df %>%
+    mutate(source = str_split(str_split(url, '//', simplify = T)[,2],
+                              fixed('.'), simplify = T)[,1],
+           bias_final = as.character(bias_final),
+           bias_final = ifelse(bias_final == 'left-center', 'least', bias_final),
+           bias_final = ifelse(bias_final == 'right-center', 'least', bias_final),
+           bias_final = factor(bias_final, levels = c('left', 'least', 'right'))) %>%
+    filter(!(source %in% c('foxbusiness', 'apnews'))) %>%
+    group_by(bias_final, source) %>%
+    count() %>%
+    ggplot(aes(x=n, fill=bias_final)) +
+    geom_histogram() +
+    scale_fill_manual(values = c('dodgerblue2', 'gray', 'firebrick')) +
+    labs(x='# Articles per Publisher', y='# Publishers') +
+    scale_x_log10(labels=comma) +
+    geom_vline(xintercept = 100, color='red') +
+    theme_classic()
+
+reduced.df %>%
+    mutate(source = str_split(str_split(url, '//', simplify = T)[,2],
+                              fixed('.'), simplify = T)[,1],
+           bias_final = as.character(bias_final),
+           bias_final = ifelse(bias_final == 'left-center', 'least', bias_final),
+           bias_final = ifelse(bias_final == 'right-center', 'least', bias_final),
+           bias_final = factor(bias_final, levels = c('left', 'least', 'right'))) %>%
+    filter(!(source %in% c('foxbusiness', 'apnews'))) %>%
+    group_by(bias_final, source) %>%
+    count() %>%
+    filter(n >= 100) %>%
+    ggplot() +
+    geom_bar(aes(x=bias_final, fill=bias_final), stat = 'count') +
+    labs(y='# Publishers', x='Leaning') +
+    scale_fill_manual(values = c('dodgerblue2', 'gray', 'firebrick')) +
+    geom_hline(yintercept = 25, color='red')
