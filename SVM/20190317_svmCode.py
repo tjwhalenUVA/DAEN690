@@ -13,7 +13,8 @@ from time import time
 from operator import itemgetter
 from nltk.corpus import stopwords
 from sklearn.pipeline import Pipeline
-from sklearn.grid_search import GridSearchCV
+#from sklearn.grid_search import GridSearchCV
+from sklearn.model_selection import GridSearchCV
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.linear_model import SGDClassifier
 from sklearn.feature_extraction.text import CountVectorizer
