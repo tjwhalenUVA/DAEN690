@@ -1,4 +1,4 @@
-#! /Users/dpbrinegar/anaconda3/envs/gitHub/bin/python
+#! /usr/bin/python
 # -*- coding: utf-8 -*-
 #
 # Author:  Paul M. Brinegar, II
@@ -61,6 +61,36 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
                                         input_length=_padLength,
                                         trainable=False))
 
+    # # Add a 1-dimensional convolution layer.  This layer slides a window of size 5 across the input
+    # # and creates an output of shape
+    # theModel.add(keras.layers.Conv1D(filters=10, kernel_size=5, activation='relu'))
+    #
+    # theModel.add(keras.layers.Dropout(0.20))
+    #
+    # theModel.add(keras.layers.MaxPool1D(pool_size=3))
+    #
+    # theModel.add(keras.layers.Conv1D(filters=50, kernel_size=3, activation='relu'))
+    #
+    # theModel.add(keras.layers.Dropout(0.20))
+    #
+    # theModel.add(keras.layers.MaxPool1D(pool_size=2))
+    #
+    # theModel.add(keras.layers.Conv1D(filters=150, kernel_size=5, activation='relu'))
+    #
+    # theModel.add(keras.layers.Dropout(0.20))
+    #
+    # theModel.add(keras.layers.MaxPool1D(pool_size=2))
+    #
+    # theModel.add(keras.layers.Flatten())
+    #
+    # theModel.add(keras.layers.Dense(units=50, activation='relu'))
+    #
+    # theModel.add(keras.layers.Dropout(0.20))
+    #
+    # theModel.add(keras.layers.Dense(units=5, activation='softmax'))
+
+
+
     # Add a 1-dimensional convolution layer.  This layer moves a window of size _cnnKernel across
     # the input and creates an output of length _cnnFilters for each window.
     theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel, activation=_convActivation))
@@ -103,7 +133,7 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
     return theModel
 
 
-def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
+def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
     #
     # Import all the packages!
     print('Importing packages')
@@ -123,6 +153,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
     from tensorflow import keras
     import numpy as np
     from sklearn.model_selection import StratifiedKFold
+    from sklearn.metrics import confusion_matrix
 
     from sys import platform as sys_pf
     if sys_pf == 'darwin':
@@ -187,7 +218,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             # Load the data from the database
             _command = "SELECT cn.id, ln.bias_final, cn.text " + \
                        "FROM train_content cn, train_lean ln " + \
-                       "WHERE (cn.id < 100000) AND " + \
+                       "WHERE (cn.id < 999999999) AND " + \
                        "(cn.`published-at` >= '2009-01-01') AND " + \
                              "(cn.id == ln.id) AND " + \
                              "(ln.url_keep == 1) AND " + \
@@ -198,8 +229,22 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
 
             _cur.execute(_command)
             _df = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text'))
+            _command = "SELECT cn.id, ln.bias_final, cn.text " + \
+                       "FROM test_content cn, test_lean ln " + \
+                       "WHERE (cn.id < 999999999) AND " + \
+                       "(cn.`published-at` >= '2009-01-01') AND " + \
+                             "(cn.id == ln.id) AND " + \
+                             "(ln.url_keep == 1) AND " + \
+                             "(cn.id NOT IN (SELECT a.id " + \
+                                            "FROM test_content a, test_content b " + \
+                                            "WHERE (a.id < b.id) AND " + \
+                                                  "(a.text == b.text)));"
+
+            _cur.execute(_command)
+            _dfx = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text'))
             _db.close()
-            print('%s records read from database' % len(_df))
+            print('%s training records read from database' % len(_df))
+            print('%s test records read from database' % len(_dfx))
 
         # If we are reading in a new GloVe global word vector file, here's where we do it.  This creates a
         # {word: vector} dictionary for every word in the GloVe input file.
@@ -259,8 +304,12 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             # occurs at the beginning or end of an article, so we are removing the first and
             # last N words from each article.  Of course, this means that we are throwing out
             # any article of length 2N or less.
+            print('Removing first and last 50 words/tokens from each article')
             _N = 50
             _articleSequences = [x[_N:-_N] for x in _junk if len(x) > (2*_N)]
+
+            # We shouldn't have to truncate the test data since we're not training on it
+            _testarticleSequences = t.texts_to_sequences(_dfx.text.values)
 
             # Truncate/pad each article to a uniform length.  We wish to capture at least 90% of
             # the articles in their entirety.  Padding will be performed at the end of the article.
@@ -270,6 +319,9 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             _articleSequencesPadded = keras.preprocessing.sequence.pad_sequences(_articleSequences,
                                                                                  maxlen=_padLength,
                                                                                  padding='post')
+            _testarticleSequencesPadded = keras.preprocessing.sequence.pad_sequences(_testarticleSequences,
+                                                                                     maxlen=_padLength,
+                                                                                     padding='post')
             print('    Length of training set articles: %s' % _padLength)
             print('    Number of training set articles: %s' % len(_articleSequencesPadded))
 
@@ -277,35 +329,59 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
             # and article leaning.  The result should be an N by 5 matrix, where N is
             # the number of words/tokens in the vocabulary -- 5 columns, one for each
             # category of leaning.
-            _leanValuesDict = {'left': 0,
-                               'left-center': 1,
-                               'least': 2,
-                               'right-center': 3,
-                               'right': 4}
-            _leanVectorDict = {0: [1,0,0,0,0],
-                               1: [0,1,0,0,0],
-                               2: [0,0,1,0,0],
-                               3: [0,0,0,1,0],
-                               4: [0,0,0,0,1]}
-            _leanArray = np.array([_leanVectorDict[_leanValuesDict[x]] for x in _df.lean])
-            _corArray = np.zeros(shape=(max(t.index_word.keys())+1, len(_leanValuesDict)))
-            _sy = np.sum(_leanArray, axis=0)
-            ss_yy = _sy - np.square(_sy) / float(len(_leanArray))
-            for _i in t.index_word.keys():
-                print('Computing correlation for word %s: %s' % (_i, t.index_word[_i]))
-                _presence = np.array([[int(_i in x) for x in _junk], ] * len(_leanValuesDict)).transpose()
-                _sx = np.sum(_presence, axis=0)
-                ss_xx = _sx - np.square(_sx) / float(len(_leanArray))
+            if _correlate:
+                _leanValuesDict = {'left': 0,
+                                   'left-center': 1,
+                                   'least': 2,
+                                   'right-center': 3,
+                                   'right': 4}
+                _leanVectorDict = {0: [1,0,0,0,0],
+                                   1: [0,1,0,0,0],
+                                   2: [0,0,1,0,0],
+                                   3: [0,0,0,1,0],
+                                   4: [0,0,0,0,1]}
+                _leanArray = np.array([_leanVectorDict[_leanValuesDict[x]] for x in _df.lean])
+                _corArray = np.zeros(shape=(max(t.index_word.keys())+1, len(_leanValuesDict)))
+                _sy = np.sum(_leanArray, axis=0)
+                ss_yy = _sy - np.square(_sy) / float(len(_leanArray))
+                for _i in t.index_word.keys():
+                    print('Computing correlation for word %s: %s' % (_i, t.index_word[_i]))
+                    _presence = np.array([[int(_i in x) for x in _junk], ] * len(_leanValuesDict)).transpose()
+                    _sx = np.sum(_presence, axis=0)
+                    ss_xx = _sx - np.square(_sx) / float(len(_leanArray))
 
-                ss_xy = np.sum(np.multiply(_leanArray, _presence), axis=0) - np.multiply(_sx, _sy) / float(len(_leanArray))
+                    ss_xy = np.sum(np.multiply(_leanArray, _presence), axis=0) - np.multiply(_sx, _sy) / float(len(_leanArray))
 
-                _corArray[_i,] = np.nan_to_num(np.square(ss_xy) / ss_xx / ss_yy)
+                    _corArray[_i,] = np.nan_to_num(np.square(ss_xy) / ss_xx / ss_yy)
 
-            _leans = ['left', 'left-center', 'least', 'right-center', 'right']
-            _maxcor = np.max(_corArray, axis=0)
-            _maxcorI = np.argmax(_corArray, axis=0)
-            for _i in range(len(_maxcor)):
-                print('Highest correlation for leaning "%s": %0.4f -- %s' % (_leans[_i], _maxcor[_i], t.index_word[_maxcorI[_i]]))
+                _leans = ['left', 'left-center', 'least', 'right-center', 'right']
+                _maxcor = np.max(_corArray, axis=0)
+                _maxcorI = np.argmax(_corArray, axis=0)
+                _topcorList = []
+                _topcorWords = []
+                for _i in range(len(_maxcor)):
+                    print('Highest correlation for leaning "%s": %0.4f -- %s' % (_leans[_i], _maxcor[_i], t.index_word[_maxcorI[_i]]))
+                    _sortedcor = np.argsort(-_corArray[:,_i])
+                    _topcorList.append(_corArray[_sortedcor[:50],_i])
+                    _topcorWords.append([t.index_word[x] for x in _sortedcor[:50]])
+
+                _corFile = '%s_word_correlation.csv' % (len(_corArray)-1)
+                with open(_corFile, 'wt') as _cf:
+                    _cf.write('Left\tLeftCor\tLeft-Center\tLeft-CenterCor\tLeast\tLeastCor\tRight-Center\tRight-CenterCor\tRight\tRightCor\n')
+                    for _i in range(np.shape(_topcorWords)[1]):
+                        _cf.write('%s\t%0.8f\t%s\t%0.8f\t%s\t%0.8f\t%s\t%0.8f\t%s\t%0.8f\n' % (_topcorWords[0][_i],
+                                                                                               _topcorList[0][_i],
+                                                                                               _topcorWords[1][_i],
+                                                                                               _topcorList[1][_i],
+                                                                                               _topcorWords[2][_i],
+                                                                                               _topcorList[2][_i],
+                                                                                               _topcorWords[3][_i],
+                                                                                               _topcorList[3][_i],
+                                                                                               _topcorWords[4][_i],
+                                                                                               _topcorList[4][_i],
+                                                                                               ))
+
+
 
             # Build the embedding matrix for use in our neural net.  Initialize it to zeros.
             # The matrix has _vocabSize rows and _dimensions columns, and consists of a word
@@ -508,6 +584,70 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _GPUid):
     for _row in _dfGrid.itertuples():
         print(_row)
 
+    # Generate a confusion matrix for the last cross validation run
+    _valPred = model.predict(_articleSequencesPadded[_val], batch_size=128, verbose=1)
+    np.shape(_valPred)
+    np.shape(_leanVals[_val])
+    _trainConfusionMatrix = confusion_matrix(_leanVals[_val], np.argmax(_valPred, axis=1))
+    _leans = ['left', 'left-center', 'least', 'right-center', 'right']
+    with open('cnnTrainSetConfusionMatrix.txt', 'wt') as _outfile:
+        _outfile.write('\tPredict Left\tPredict Left-Center\tPredict Least\tPredict Right Center\tPredict Right\n')
+        _j = 0
+        for _r in _trainConfusionMatrix:
+            _outfile.write('%s\t%d\t%d\t%d\t%d\t%d\n' % (('Actual ' + _leans[_j]), _r[0], _r[1], _r[2], _r[3], _r[4]))
+            _j += 1
+    _trainOutput = list(zip(_df.id[_val], np.argmax(_valPred, axis=1), _leanVals[_val]))
+    with open('cnnTrainSetPredictionResults.txt', 'wt') as _outfile:
+        _outfile.write('ID\tPredicted Value\tActual Value\n')
+        for _r in _trainOutput:
+            _outfile.write('%d\t%d\t%d\n' % (_r[0], _r[1], _r[2]))
+
+    if _runtest:
+        print('Training on Full Training Set')
+        # Construct the Tensorflow/keras model for a convolutional neural net
+        model = constructModel(_vocabSize=_vocabSize, _dimensions=_dimensions, _embeddingMatrix=_embeddingMatrix,
+                               _padLength=_padLength,
+                               _cnnFilters=_row.convolutionFilters, _cnnKernel=_row.convolutionKernel,
+                               _convActivation=_row.convolutionActivation,
+                               _cnnPool=_row.poolSize,
+                               _cnnFlatten=_row.flattenLayer,
+                               _cnnDense=_row.denseUnits,
+                               _denseActivation=_row.denseActivation,
+                               _cnnDropout=_row.dropoutFraction,
+                               _outputActivation=_row.outputActivation,
+                               _lossFunction=_row.lossFunction)
+
+        # Fit the model to the data
+        _history = model.fit(_articleSequencesPadded,
+                             np.array([_leanVectorDict[k] for k in _leanVals]),
+                             epochs=_maxEpoch, batch_size=128,
+                             verbose=_verbose)
+
+        print('Applying Model to Full Test Set')
+        print(_testarticleSequencesPadded)
+        _predictions = model.predict(_testarticleSequencesPadded)
+        print(_predictions)
+        print(_testarticleSequencesPadded.shape)
+
+        _testLean = np.array([_leanValuesDict[x] for x in _dfx.lean])
+        _testPred = np.argmax(np.array(_predictions), axis=1)
+        print(_testLean)
+        print(_testPred)
+        print(float(sum(_testLean == _testPred)) / float(len(_testPred)))
+        _testConfusionMatrix = confusion_matrix(_testLean, _testPred)
+        _leans = ['left', 'left-center', 'least', 'right-center', 'right']
+        with open('cnnTestSetConfusionMatrix.txt', 'wt') as _outfile:
+            _outfile.write('\tPredict Left\tPredict Left-Center\tPredict Least\tPredict Right Center\tPredict Right\n')
+            _j = 0
+            for _r in _testConfusionMatrix:
+                _outfile.write('%s\t%d\t%d\t%d\t%d\t%d\n' % (('Actual '+_leans[_j]), _r[0], _r[1], _r[2], _r[3], _r[4]))
+                _j += 1
+        _testOutput = list(zip(_dfx.id, _testPred, _testLean))
+        with open('cnnTestSetPredictionResults.txt', 'wt') as _outfile:
+            _outfile.write('ID\tPredicted Value\tActual Value\n')
+            for _r in _testOutput:
+                _outfile.write('%d\t%d\t%d\n' % (_r[0], _r[1], _r[2]))
+
 
 if __name__ == '__main__':
     _parser = argparse.ArgumentParser(description='Grid search for convolution neural net model.')
@@ -517,11 +657,15 @@ if __name__ == '__main__':
     _parser.add_argument('-e', '--epochs', type=int, default=1, help='Number of epochs to run in the neural net')
     _parser.add_argument('-v', '--verbose', type=int, default=1, help='Verbosity of model fitting ' +
                          '0: no output, 1: progress bar, 2: epoch only')
+    _parser.add_argument('-c', '--correlate', action='store_true', default=False,
+                         help='Perform correlation analysis')
+    _parser.add_argument('-T', '--runtest', action='store_true', default=False, 
+                         help='Run model against test data in database')
     _parser.add_argument('-Z', '--gpuid', type=int, default=None,
                          help='ID of the GPU to use (for none specified, skip this argument)')
     _args = _parser.parse_args()
 
     print(_args)
 
-    main(_args.gridfile, _args.folds, _args.epochs, _args.verbose, _args.gpuid)
+    main(_args.gridfile, _args.folds, _args.epochs, _args.verbose, _args.correlate, _args.runtest, _args.gpuid)
 

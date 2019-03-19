@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /Users/dpbrinegar/anaconda3/envs/gitHub/bin/python
 # -*- coding: utf-8 -*-
 #
 # Author:  Paul M. Brinegar, II
@@ -61,62 +61,72 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
                                         input_length=_padLength,
                                         trainable=False))
 
-    # Add a 1-dimensional convolution layer.  This layer slides a window of size 5 across the input
-    # and creates an output of shape
-    theModel.add(keras.layers.Conv1D(filters=10, kernel_size=5, activation='relu'))
-
-    theModel.add(keras.layers.Dropout(0.20))
-
-    theModel.add(keras.layers.MaxPool1D(pool_size=3))
-
-    theModel.add(keras.layers.Conv1D(filters=50, kernel_size=3, activation='relu'))
-
-    theModel.add(keras.layers.Dropout(0.20))
-
-    theModel.add(keras.layers.MaxPool1D(pool_size=2))
-
-    theModel.add(keras.layers.Conv1D(filters=150, kernel_size=5, activation='relu'))
-
-    theModel.add(keras.layers.Dropout(0.20))
-
-    theModel.add(keras.layers.MaxPool1D(pool_size=2))
-
-    theModel.add(keras.layers.Flatten())
-
-    theModel.add(keras.layers.Dense(units=50, activation='relu'))
-
-    theModel.add(keras.layers.Dropout(0.20))
-
-    theModel.add(keras.layers.Dense(units=5, activation='softmax'))
-
-
-
-    # # Add a 1-dimensional convolution layer.  This layer moves a window of size _cnnKernel across
-    # # the input and creates an output of length _cnnFilters for each window.
-    # theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel, activation=_convActivation))
+    # # Add a 1-dimensional convolution layer.  This layer slides a window of size 5 across the input
+    # # and creates an output of shape
+    # theModel.add(keras.layers.Conv1D(filters=10, kernel_size=5, activation='relu'))
     #
-    # # Add a max pooling layer.  This layer looks at the vectors contained in a window of size _cnnPool
-    # # and outputs the vector with the greatest L2 norm.
-    # theModel.add(keras.layers.MaxPool1D(pool_size=_cnnPool))
+    # theModel.add(keras.layers.Dropout(0.20))
     #
-    # # Add a flatten layer.  This layer removes reduces the output to a one-dimensional vector
-    # if _cnnFlatten:
-    #     theModel.add(keras.layers.Flatten())
+    # theModel.add(keras.layers.MaxPool1D(pool_size=3))
     #
-    # # Add a fully connected dense layer.  This layer adds a lot of nodes to the model to allow
-    # # for different features in the article to activate different groups of nodes.
-    # theModel.add(keras.layers.Dense(units=_cnnDense, activation=_denseActivation))
+    # theModel.add(keras.layers.Conv1D(filters=50, kernel_size=3, activation='relu'))
     #
-    # # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
-    # # during each training epoch.  Doing this prevents a small set of nodes doing all the
-    # # work while a bunch of other nodes sit around playing poker.
-    # if _cnnDropout > 0.0:
-    #     theModel.add(keras.layers.Dropout(_cnnDropout))
+    # theModel.add(keras.layers.Dropout(0.20))
     #
-    # # Add our output layer.  We have 5 classes of output "left", "left-center", "least",
-    # # "right-center", and "right".  This layer converts the inputs from the dense/dropout
-    # # layer into outputs for these 5 classes, essentially predicting the article leaning.
-    # theModel.add(keras.layers.Dense(5, activation=_outputActivation))
+    # theModel.add(keras.layers.MaxPool1D(pool_size=2))
+    #
+    # theModel.add(keras.layers.Conv1D(filters=150, kernel_size=5, activation='relu'))
+    #
+    # theModel.add(keras.layers.Dropout(0.20))
+    #
+    # theModel.add(keras.layers.MaxPool1D(pool_size=2))
+    #
+    # theModel.add(keras.layers.Flatten())
+    #
+    # theModel.add(keras.layers.Dense(units=50, activation='relu'))
+    #
+    # theModel.add(keras.layers.Dropout(0.20))
+    #
+    # theModel.add(keras.layers.Dense(units=5, activation='softmax'))
+
+
+
+    # Add a 1-dimensional convolution layer.  This layer moves a window of size _cnnKernel across
+    # the input and creates an output of length _cnnFilters for each window.
+#    theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel, activation=_convActivation))
+    theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel,
+                                     activation=_convActivation,
+                                     kernel_regularizer=keras.regularizers.l2(0.02)))
+
+    # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
+    #     # during each training epoch.  Doing this prevents a small set of nodes doing all the
+    #     # work while a bunch of other nodes sit around playing poker.
+    if _cnnDropout > 0.0:
+        theModel.add(keras.layers.Dropout(_cnnDropout))
+
+    # Add a max pooling layer.  This layer looks at the vectors contained in a window of size _cnnPool
+    # and outputs the vector with the greatest L2 norm.
+    theModel.add(keras.layers.MaxPool1D(pool_size=_cnnPool))
+
+    # Add a flatten layer.  This layer removes reduces the output to a one-dimensional vector
+    if _cnnFlatten:
+        theModel.add(keras.layers.Flatten())
+
+    # Add a fully connected dense layer.  This layer adds a lot of nodes to the model to allow
+    # for different features in the article to activate different groups of nodes.
+    theModel.add(keras.layers.Dense(units=_cnnDense, activation=_denseActivation,
+                                    kernel_regularizer=keras.regularizers.l2(0.2)))
+
+    # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
+    # during each training epoch.  Doing this prevents a small set of nodes doing all the
+    # work while a bunch of other nodes sit around playing poker.
+    if _cnnDropout > 0.0:
+        theModel.add(keras.layers.Dropout(_cnnDropout))
+
+    # Add our output layer.  We have 5 classes of output "left", "left-center", "least",
+    # "right-center", and "right".  This layer converts the inputs from the dense/dropout
+    # layer into outputs for these 5 classes, essentially predicting the article leaning.
+    theModel.add(keras.layers.Dense(5, activation=_outputActivation))
 
     # Display a summary of our model
     if _summarize:
@@ -142,6 +152,8 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
         os.environ['CUDA_VISIBLE_DEVICES'] = '%s' % _GPUid
 
+    import time
+
     import gc
 
     import sqlite3
@@ -153,6 +165,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
     from tensorflow import keras
     import numpy as np
     from sklearn.model_selection import StratifiedKFold
+    from sklearn.metrics import confusion_matrix
 
     from sys import platform as sys_pf
     if sys_pf == 'darwin':
@@ -161,6 +174,9 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
         import matplotlib.pyplot as plt
     else:
         import matplotlib.pyplot as plt
+
+    # Let's begin!
+    _t0 = time.time()
 
     # Initialize some variables that affect when to re-load and re-process the input files
     oldDbFile = None
@@ -186,6 +202,8 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                               'dropoutFraction': float,
                               'outputActivation': str,
                               'lossFunction': str})
+    _t1 = time.time()
+    print('\nGrid search file load time: %0.3f\tTotal time elapsed: %0.3f seconds\n' % (_t1 - _t0, _t1 - _t0))
 
     # Start the grid search
     _idBase = min(_dfGrid.id)
@@ -214,11 +232,11 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             _db = sqlite3.connect(_row.dbFile)
             _cur = _db.cursor()
 
-            # Load the data from the database
-            _command = "SELECT cn.id, ln.bias_final, cn.text " + \
+            # Load the training set data from the database
+            _command = "SELECT cn.id, ln.bias_final, cn.text, ln.url " + \
                        "FROM train_content cn, train_lean ln " + \
-                       "WHERE (cn.id < 999999999) AND " + \
-                       "(cn.`published-at` >= '2009-01-01') AND " + \
+                       "WHERE (cn.id < 599999) AND " + \
+                       "(cn.`published-at` >= '2014-01-01') AND " + \
                              "(cn.id == ln.id) AND " + \
                              "(ln.url_keep == 1) AND " + \
                              "(cn.id NOT IN (SELECT a.id " + \
@@ -227,11 +245,13 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                                                   "(a.text == b.text)));"
 
             _cur.execute(_command)
-            _df = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text'))
-            _command = "SELECT cn.id, ln.bias_final, cn.text " + \
+            _df = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text', 'url'))
+
+            # load the test set data from the database
+            _command = "SELECT cn.id, ln.bias_final, cn.text, ln.url " + \
                        "FROM test_content cn, test_lean ln " + \
                        "WHERE (cn.id < 999999999) AND " + \
-                       "(cn.`published-at` >= '2009-01-01') AND " + \
+                       "(cn.`published-at` >= '2014-01-01') AND " + \
                              "(cn.id == ln.id) AND " + \
                              "(ln.url_keep == 1) AND " + \
                              "(cn.id NOT IN (SELECT a.id " + \
@@ -240,10 +260,14 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                                                   "(a.text == b.text)));"
 
             _cur.execute(_command)
-            _dfx = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text'))
+            _dfx = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text', 'url'))
             _db.close()
             print('%s training records read from database' % len(_df))
             print('%s test records read from database' % len(_dfx))
+
+            _t2 = time.time()
+            print('\nDatabase query time: %0.3f\tTotal time elapsed: %0.3f seconds' % (_t2 - _t1, _t2 - _t0))
+            print('Database query time only valid for first time query is made\n')
 
         # If we are reading in a new GloVe global word vector file, here's where we do it.  This creates a
         # {word: vector} dictionary for every word in the GloVe input file.
@@ -265,6 +289,9 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                     _junk = _gfRow.split()
                     _embeddingDict[_junk[0]] = np.array(_junk[1:], dtype='float32')
 
+            _t3 = time.time()
+            print('\nGloVe file load time: %0.3f\tTotal time elapsed: %0.3f seconds\n' % (_t3 - _t2, _t3 - _t0))
+
         if _row.vocabSize != oldVocabSize:
             _flag = True
             oldVocabSize = _row.vocabSize
@@ -275,12 +302,72 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
 
         # Repprocess the input data (if necessary)
         if _flag:
+            # If we wish to exclude certain publishers from the training set,
+            # remove them here.  Publishers are exlucded by their primary URL
+            # address (e.g. AP News would be 'apnews', Albuquerque Journal would
+            # be 'abqjournal'.
+            print('Excluding specific publishers due to strongly biasing the model')
+            _excludePublishers = ['NULL']
+            _excludePublishers = ['apnews', 'foxbusiness']
+            _excludeString = '|'.join(_excludePublishers)
+            _df = _df[~_df['url'].str.contains(_excludeString)]
+
             _vocabSize = _row.vocabSize
+
+            _t4 = time.time()
+
             # Tokenize the articles to create a {word:index} dictionary.  The variable _vocabSize
-            # can be any size we wish.  We set a token for out-of-vocabulary words.
+            # can be any size we wish.  We set a token for out-of-vocabulary words.  We start with
+            # a vocabulary size much larger than we intend to actually use, to allow for removal
+            # of various words/characters that we don't want to include.  NOTE:  keras does not
+            # seem to do much with the num_words argument, as it does not truncate its dictionaries
+            # during tokenizing.
             print('Tokenizing corpus of articles and building vocabulary')
             t = keras.preprocessing.text.Tokenizer(oov_token="<OOV>", num_words=_vocabSize)
             t.fit_on_texts(_df.text)
+
+            _t5 = time.time()
+            print('\nTokenizing time: %0.3f\tTotal time elapsed: %0.3f seconds\n' % (_t5 - _t4, _t5 - _t0))
+
+
+            # Remove certain words from the vocabulary... single character "words", numbers,
+            # specific words that the neural net is probably keying on, etc.
+            print('Removing specific words that act as tipping/cueing for the model')
+            print('Removing numbers and "words" of length 1')
+            _j = 2
+            _wordCount = 2
+            _excludeWords = ['reuters', 'advertisement']
+            while _wordCount <= min([5 * _vocabSize, len(t.index_word)]):
+                _flag = False
+                _word = t.index_word[_j]
+
+                # "words" of length 1 get removed from the vocabulary
+                if len(_word) == 1:
+                    print('%s - Removing %s:  Word is only one character in length' % (_j,_word))
+                    _flag = True
+
+                # numbers get removed from the vocabulary
+                junk = None
+                try:
+                    junk = int(_word)
+                except ValueError:
+                    pass
+                if junk is not None:
+                    print('%s - Removing %s:  Word is a number' % (_j,_word))
+                    _flag = True
+
+                # words that are tips/cues to the neural net
+                if _word in _excludeWords:
+                    print('%s - Removing %s:  Word is in the tip/cue list' % (_j,_word))
+                    _flag = True
+
+                if _flag:
+                    del t.word_index[_word]
+                else:
+                    t.index_word[_wordCount] = _word
+                    t.word_index[_word] = _wordCount
+                    _wordCount += 1
+                _j += 1
 
             # The tokenizer in keras fails to create its {word:index} dictionary properly.  Words
             # with indices larger than the vocabulary size are retained, so we must rebuild the
@@ -290,12 +377,42 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             t.index_word = {index: word for index, word in t.index_word.items() if index <= _vocabSize}
             _vocabSize = max([index for index, word in t.index_word.items()]) + 1   # corrects for one-based indexing
 
+            _t6 = time.time()
+
             # Sequence the articles to convert them to a list of lists where each inner list
             # contains a serquence of word indices.  Store in temporary _junk variable.
             print('Converting each article into a sequence of word indices')
-            _junk = t.texts_to_sequences(_df.text.values)
-            _junklen = [len(x) for x in _junk]
-            _df = _df.assign(length=_junklen)
+            _tempSequences = t.texts_to_sequences(_df.text.values)
+            _sequenceLengths = [len(x) for x in _tempSequences]
+            _df = _df.assign(length=_sequenceLengths)
+
+            _t7 = time.time()
+            print('\nSequence conversion time: %0.3f\tTotal time elapsed: %0.3f seconds\n' % (_t7 - _t6, _t7 - _t0))
+
+            # Remove certain phrases that we think might be tipping/cueing for the neural net.
+            print('Excluding certain phrases which may be tipping/cueing the model')
+            _excludePhrases = ['the thomson reuters trust principles',
+                               'our standards',
+                               'continue reading below']
+            _excludeSequences = t.texts_to_sequences(_excludePhrases)
+            _phraseID = 0
+            for _seq in _excludeSequences:
+                _seqLen = len(_seq)
+                _nullSeq = [1] * _seqLen
+                _j = 0
+                _repCount = 0
+                _seqCount = 0
+                for _tempseq in _tempSequences:
+                    _seqPos = [(x, x + _seqLen) for x in range(len(_tempseq)) if _tempseq[x:x + _seqLen] == _seq]
+                    if _seqPos:
+                        for _pos in _seqPos:
+                            _tempSequences[_j][_pos[0]:_pos[1]] = _nullSeq
+                            _repCount += 1
+                        _seqCount += 1
+                    _j += 1
+                print('    Removed %d instances of "%s" from %d articles' % (_repCount, _excludePhrases[_phraseID],
+                                                                             _seqCount))
+                _phraseID += 1
 
             # It is possible that articles contain publisher information or bylines that are
             # highly correlated with the leaning (since leaning is assigned by-publisher).
@@ -303,11 +420,14 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             # occurs at the beginning or end of an article, so we are removing the first and
             # last N words from each article.  Of course, this means that we are throwing out
             # any article of length 2N or less.
+            print('Removing first and last 50 words/tokens from each article')
             _N = 50
-            _articleSequences = [x[_N:-_N] for x in _junk if len(x) > (2*_N)]
+            _articleSequences = [x[_N:-_N] for x in _tempSequences if len(x) > (2*_N)]
 
             # We shouldn't have to truncate the test data since we're not training on it
             _testarticleSequences = t.texts_to_sequences(_dfx.text.values)
+
+            _t8 = time.time()
 
             # Truncate/pad each article to a uniform length.  We wish to capture at least 90% of
             # the articles in their entirety.  Padding will be performed at the end of the article.
@@ -322,12 +442,19 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                                                                                      padding='post')
             print('    Length of training set articles: %s' % _padLength)
             print('    Number of training set articles: %s' % len(_articleSequencesPadded))
+            print('    Length of test set articles: %s' % _padLength)
+            print('    Number of test set articles: %s' % len(_testarticleSequencesPadded))
+
+            _t9 = time.time()
+            print('\nSequence padding time: %0.3f\tTotal time elapsed: %0.3f seconds\n' % (_t9 - _t8, _t9 - _t0))
 
             # Determine how much correlation there is between each word in the vocabulary
             # and article leaning.  The result should be an N by 5 matrix, where N is
             # the number of words/tokens in the vocabulary -- 5 columns, one for each
             # category of leaning.
             if _correlate:
+                _t10 = time.time()
+                print('Computing word correlations')
                 _leanValuesDict = {'left': 0,
                                    'left-center': 1,
                                    'least': 2,
@@ -344,7 +471,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                 ss_yy = _sy - np.square(_sy) / float(len(_leanArray))
                 for _i in t.index_word.keys():
                     print('Computing correlation for word %s: %s' % (_i, t.index_word[_i]))
-                    _presence = np.array([[int(_i in x) for x in _junk], ] * len(_leanValuesDict)).transpose()
+                    _presence = np.array([[int(_i in x) for x in _tempSequences], ] * len(_leanValuesDict)).transpose()
                     _sx = np.sum(_presence, axis=0)
                     ss_xx = _sx - np.square(_sx) / float(len(_leanArray))
 
@@ -355,8 +482,32 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                 _leans = ['left', 'left-center', 'least', 'right-center', 'right']
                 _maxcor = np.max(_corArray, axis=0)
                 _maxcorI = np.argmax(_corArray, axis=0)
+                _topcorList = []
+                _topcorWords = []
                 for _i in range(len(_maxcor)):
                     print('Highest correlation for leaning "%s": %0.4f -- %s' % (_leans[_i], _maxcor[_i], t.index_word[_maxcorI[_i]]))
+                    _sortedcor = np.argsort(-_corArray[:,_i])
+                    _topcorList.append(_corArray[_sortedcor[:50],_i])
+                    _topcorWords.append([t.index_word[x] for x in _sortedcor[:50]])
+
+                _corFile = '%s_word_correlation.csv' % (len(_corArray)-1)
+                with open(_corFile, 'wt') as _cf:
+                    _cf.write('Left\tLeftCor\tLeft-Center\tLeft-CenterCor\tLeast\tLeastCor\tRight-Center\tRight-CenterCor\tRight\tRightCor\n')
+                    for _i in range(np.shape(_topcorWords)[1]):
+                        _cf.write('%s\t%0.8f\t%s\t%0.8f\t%s\t%0.8f\t%s\t%0.8f\t%s\t%0.8f\n' % (_topcorWords[0][_i],
+                                                                                               _topcorList[0][_i],
+                                                                                               _topcorWords[1][_i],
+                                                                                               _topcorList[1][_i],
+                                                                                               _topcorWords[2][_i],
+                                                                                               _topcorList[2][_i],
+                                                                                               _topcorWords[3][_i],
+                                                                                               _topcorList[3][_i],
+                                                                                               _topcorWords[4][_i],
+                                                                                               _topcorList[4][_i],
+                                                                                               ))
+
+                _t11 = time.time()
+                print('\nCorrelation computation time: %0.3f\tTotal time elapsed: %0.3f seconds\n' % (_t11 - _t10, _t11 - _t0))
 
             # Build the embedding matrix for use in our neural net.  Initialize it to zeros.
             # The matrix has _vocabSize rows and _dimensions columns, and consists of a word
@@ -415,6 +566,8 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
         # class in both the training and test/validation set.  Thus we don't end
         # up with a horribly imbalanced set as part of our cross validation.
         #
+        _t12 = time.time()
+
         if _numFolds == 0:
             _foldFlag = False
             _numFolds = 10
@@ -461,6 +614,15 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                 _fval_acc.append(_historyDict['val_categorical_accuracy'])
                 _floss.append(_historyDict['loss'])
                 _fval_loss.append(_historyDict['val_loss'])
+
+                # Remove the current model from the tensorflow backend to prepare for the next fold.
+                # Also remove the model from keras, and perform some garbage cleanup.
+                keras.backend.clear_session()
+                if j < _numFolds:
+                    del model
+                junk = gc.collect()
+                print('Garbage Collection: %s objects collected' % junk)
+
 
             else:
                 if j == 1:
@@ -509,12 +671,8 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             _minEpoch = np.argmin(np.mean(np.matrix(_fval_loss), axis=0).tolist()[0]) + 1
             _minRow = _row
 
-        # Remove the current model from the tensorflow backend to prepare for the next model.
-        # Also remove the model from keras, and perform some garbage cleanup.
-        keras.backend.clear_session()
-        del model
-        junk = gc.collect()
-        print('Garbage Collection: %s objects collected' % junk)
+        _t13 = time.time()
+        print('\nTraining/validation time: %0.3f\tTotal time elapsed: %0.3f seconds\n' % (_t13 - _t12, _t13 - _t0))
 
     print('\n\n')
     print('Parameter Combinations Processed:')
@@ -559,7 +717,26 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
     for _row in _dfGrid.itertuples():
         print(_row)
 
+    # Generate a confusion matrix for the last cross validation run
+    _valPred = model.predict(_articleSequencesPadded[_val], batch_size=128, verbose=1)
+    np.shape(_valPred)
+    np.shape(_leanVals[_val])
+    _trainConfusionMatrix = confusion_matrix(_leanVals[_val], np.argmax(_valPred, axis=1))
+    _leans = ['left', 'left-center', 'least', 'right-center', 'right']
+    with open('cnnTrainSetConfusionMatrix.txt', 'wt') as _outfile:
+        _outfile.write('\tPredict Left\tPredict Left-Center\tPredict Least\tPredict Right Center\tPredict Right\n')
+        _j = 0
+        for _r in _trainConfusionMatrix:
+            _outfile.write('%s\t%d\t%d\t%d\t%d\t%d\n' % (('Actual ' + _leans[_j]), _r[0], _r[1], _r[2], _r[3], _r[4]))
+            _j += 1
+    _trainOutput = list(zip(_df.iloc[_val].id, np.argmax(_valPred, axis=1), _leanVals[_val]))
+    with open('cnnTrainSetPredictionResults.txt', 'wt') as _outfile:
+        _outfile.write('ID\tPredicted Value\tActual Value\n')
+        for _r in _trainOutput:
+            _outfile.write('%d\t%d\t%d\n' % (_r[0], _r[1], _r[2]))
+
     if _runtest:
+        _t14 = time.time()
         print('Training on Full Training Set')
         # Construct the Tensorflow/keras model for a convolutional neural net
         model = constructModel(_vocabSize=_vocabSize, _dimensions=_dimensions, _embeddingMatrix=_embeddingMatrix,
@@ -582,7 +759,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
 
         print('Applying Model to Full Test Set')
         print(_testarticleSequencesPadded)
-        _predictions = model.predict(_testarticleSequencesPadded)
+        _predictions = model.predict(_testarticleSequencesPadded, batch_size = 128, verbose=1)
         print(_predictions)
         print(_testarticleSequencesPadded.shape)
 
@@ -591,6 +768,24 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
         print(_testLean)
         print(_testPred)
         print(float(sum(_testLean == _testPred)) / float(len(_testPred)))
+        _testConfusionMatrix = confusion_matrix(_testLean, _testPred)
+        _leans = ['left', 'left-center', 'least', 'right-center', 'right']
+        with open('cnnTestSetConfusionMatrix.txt', 'wt') as _outfile:
+            _outfile.write('\tPredict Left\tPredict Left-Center\tPredict Least\tPredict Right Center\tPredict Right\n')
+            _j = 0
+            for _r in _testConfusionMatrix:
+                _outfile.write('%s\t%d\t%d\t%d\t%d\t%d\n' % (('Actual '+_leans[_j]), _r[0], _r[1], _r[2], _r[3], _r[4]))
+                _j += 1
+        _testOutput = list(zip(_dfx.id, _testPred, _testLean))
+        with open('cnnTestSetPredictionResults.txt', 'wt') as _outfile:
+            _outfile.write('ID\tPredicted Value\tActual Value\n')
+            for _r in _testOutput:
+                _outfile.write('%d\t%d\t%d\n' % (_r[0], _r[1], _r[2]))
+        _t15 = time.time()
+        print('\nTest set evaluation time: %0.3f\tTotal time elapsed: %0.3f seconds\n' % (_t15 - _t14, _t15 - _t0))
+
+    _t99 = time.time()
+    print('\n\nRun completed.  Total time: %0.3f seconds' % (_t99 - _t0))
 
 
 if __name__ == '__main__':
