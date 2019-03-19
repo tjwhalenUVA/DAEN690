@@ -5,14 +5,19 @@ Created on Sun Mar 17 17:42:18 2019
 
 @author: davidwilbur
 """
-
-
 import os
 import sqlite3
-import pandas as pd
 import numpy as np
-
+import pandas as pd
+from time import time
+from operator import itemgetter
 from nltk.corpus import stopwords
+from sklearn.pipeline import Pipeline
+from sklearn.grid_search import GridSearchCV
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import SGDClassifier
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfTransformer
 
 #%% Set global path variables
 directory = os.path.dirname(os.path.abspath('__file__'))
@@ -25,9 +30,9 @@ _db = sqlite3.connect(_dbFile)
 # Pull the relevant bits of data out of the database and
 # store them in a pandas dataframe.
 print('Pulling article IDs, leanings, and text from database')
-q1 = """SELECT ln.id, ln.bias_final, cn.text, ln.url
+q1 = """SELECT ln.id, ln.bias_final, cn.text, ln.url, ln.pubs_100, ln.source
         FROM train_lean ln, train_content cn
-        WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id AND ln.url_keep='1'"""
+        WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id AND ln.url_keep='1' AND ln.pubs_100='1.0'"""
 _df = pd.read_sql(q1, _db, columns=('id', 'lean', 'text'))
 _lean = pd.read_sql('select * from train_lean;', _db)
 
@@ -41,25 +46,30 @@ q2 = """SELECT ln.id, ln.bias_final, cn.text, ln.url
 test_df = pd.read_sql(q2, _db, columns=('id', 'lean', 'text'))
 test_lean = pd.read_sql('select * from test_lean;', _db)
 
-frames = [_df, test_df]
-new_df = pd.concat(frames, axis=0)
+#%%
+#print('Excluding specific publishers due to strongly biasing the model')
+#_excludePublishers = ['NULL']
+#_excludePublishers = ['apnews', 'foxbusiness']
+#_excludeString = '|'.join(_excludePublishers)
+#_df = _df[~_df['url'].str.contains(_excludeString)]
 
-from sklearn.model_selection import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(new_df.text,new_df.bias_final, test_size=0.2, random_state=42)
+#%%
+#frames = [_df, test_df]
+#new_df = pd.concat(frames, axis=0)
+
+#%%
+#from sklearn.model_selection import train_test_split
+#X_train, X_test, y_train, y_test = train_test_split(new_df.text,new_df.bias_final, test_size=0.1, random_state=42)
 
 #%%
 
-print('Excluding specific publishers due to strongly biasing the model')
+_df1 = _df.groupby('source').apply(lambda x: x.sample(n=100))
+
 _excludePublishers = ['NULL']
-_excludePublishers = ['apnews', 'foxbusiness']
+_excludePublishers = ['abqjournal', 'washingtontimes']
 _excludeString = '|'.join(_excludePublishers)
-_df = _df[~_df['url'].str.contains(_excludeString)]
-
+_df1 = _df1[~_df1['source'].str.contains(_excludeString)]
 #%%
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.pipeline import Pipeline
-from sklearn.feature_extraction.text import TfidfTransformer
-from sklearn.naive_bayes import MultinomialNB
 
 pipe_mnb = Pipeline([('vect', CountVectorizer()),
                      ('tfidf', TfidfTransformer()),
@@ -80,28 +90,21 @@ print("GridSearchCV took %.2f seconds for %d candidate parameter settings."
 report(grid_search_mnb.grid_scores_)
 
 
-text_clf_mnb = Pipeline([('vect', CountVectorizer()),
+text_clf_mnb = Pipeline([('vect', CountVectorizer(stop_words="english", ngram_range=(1, 5), max_features=10000, min_df=0.25)),
                          ('tfidf', TfidfTransformer()),
                          ('clf-mnb', MultinomialNB()),])
-text_clf_mnb = text_clf_mnb.fit(X_train, y_train)
-predicted_mnb = text_clf_mnb.predict(X_test)
-np.mean(predicted_mnb == y_test)
+text_clf_mnb = text_clf_mnb.fit(_df1.text, _df1.bias_final)
+predicted_mnb = text_clf_mnb.predict(test_df.text)
+np.mean(predicted_mnb == test_df.bias_final)
 
 #text_clf = text_clf.fit(_df.text, _df.bias_final)
 
 #%%
-
 import numpy as np
 predicted = text_clf.predict(test_df.text)
 np.mean(predicted == test_df.bias_final)
 
 #%%
-import numpy as np
-from time import time
-from operator import itemgetter
-from sklearn.grid_search import GridSearchCV
-from sklearn.linear_model import SGDClassifier
-
 # Utility function to report best scores
 def report(grid_scores, n_top=3):
     top_scores = sorted(grid_scores, key=itemgetter(1), reverse=True)[:n_top]
@@ -147,7 +150,7 @@ print("GridSearchCV took %.2f seconds for %d candidate parameter settings."
       % (time() - start, len(grid_search.grid_scores_)))
 report(grid_search.grid_scores_)
 
-text_clf_svm = Pipeline([('vect', CountVectorizer()),
+text_clf_svm = Pipeline([('vect', CountVectorizer(stop_words="english", ngram_range=(1, 10), max_features=10000)),
                          ('tfidf', TfidfTransformer()),
                          ('clf-svm', SGDClassifier(alpha=0.0001, 
                            average=False, 
@@ -168,6 +171,6 @@ text_clf_svm = Pipeline([('vect', CountVectorizer()),
                            tol=None,
                            verbose=0,
                            warm_start=False)),])
-text_clf_svm = text_clf_svm.fit(_df.text, _df.bias_final)
+text_clf_svm = text_clf_svm.fit(_df1.text, _df1.bias_final)
 predicted_svm = text_clf_svm.predict(test_df.text)
 np.mean(predicted_svm == test_df.bias_final )
