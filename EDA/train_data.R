@@ -406,3 +406,5 @@ reduced.df %>%
     labs(y='# Publishers', x='Leaning') +
     scale_fill_manual(values = c('dodgerblue2', 'gray', 'firebrick')) +
     geom_hline(yintercept = 25, color='red')
+
+
