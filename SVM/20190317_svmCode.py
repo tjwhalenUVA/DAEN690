@@ -41,8 +41,11 @@ q2 = """SELECT ln.id, ln.bias_final, cn.text, ln.url
 test_df = pd.read_sql(q2, _db, columns=('id', 'lean', 'text'))
 test_lean = pd.read_sql('select * from test_lean;', _db)
 
+frames = [_df, test_df]
+new_df = pd.concat(frames, axis=0)
 
-
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(new_df.text,new_df.bias_final, test_size=0.2, random_state=42)
 
 #%%
 
@@ -80,9 +83,9 @@ report(grid_search_mnb.grid_scores_)
 text_clf_mnb = Pipeline([('vect', CountVectorizer()),
                          ('tfidf', TfidfTransformer()),
                          ('clf-mnb', MultinomialNB()),])
-text_clf_mnb = text_clf_mnb.fit(_df.text, _df.bias_final)
-predicted_mnb = text_clf_mnb.predict(test_df.text)
-np.mean(predicted_mnb == test_df.bias_final )
+text_clf_mnb = text_clf_mnb.fit(X_train, y_train)
+predicted_mnb = text_clf_mnb.predict(X_test)
+np.mean(predicted_mnb == y_test)
 
 #text_clf = text_clf.fit(_df.text, _df.bias_final)
 
