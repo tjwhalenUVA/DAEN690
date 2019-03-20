@@ -630,8 +630,8 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
 
                 # Remove the current model from the tensorflow backend to prepare for the next fold.
                 # Also remove the model from keras, and perform some garbage cleanup.
-                keras.backend.clear_session()
                 if j < _numFolds:
+                    keras.backend.clear_session()
                     del model
                 junk = gc.collect()
                 print('Garbage Collection: %s objects collected' % junk)
@@ -665,7 +665,6 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                     _fval_acc.append(_historyDict['val_categorical_accuracy'])
                     _floss.append(_historyDict['loss'])
                     _fval_loss.append(_historyDict['val_loss'])
-                    keras.backend.clear_session()
 
             j += 1
 
@@ -752,6 +751,8 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
     if _runtest:
         _t14 = time.time()
         print('Training on Full Training Set')
+        keras.backend.clear_session()
+        del model
         # Construct the Tensorflow/keras model for a convolutional neural net
         model = constructModel(_vocabSize=_vocabSize, _dimensions=_dimensions, _embeddingMatrix=_embeddingMatrix,
                                _padLength=_padLength,
