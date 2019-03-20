@@ -12,7 +12,13 @@ import pandas as pd
 from time import time
 from operator import itemgetter
 from sklearn.pipeline import Pipeline
+<<<<<<< HEAD
 from sklearn.grid_search import GridSearchCV
+=======
+#from sklearn.grid_search import GridSearchCV
+from sklearn.model_selection import GridSearchCV
+from sklearn.naive_bayes import MultinomialNB
+>>>>>>> 0bb9115363e28c25ff6d451dc620076b4f0de7dc
 from sklearn.linear_model import SGDClassifier
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
