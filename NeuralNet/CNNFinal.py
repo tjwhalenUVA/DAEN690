@@ -96,7 +96,7 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
 #    theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel, activation=_convActivation))
     theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel,
                                      activation=_convActivation,
-                                     kernel_regularizer=keras.regularizers.l2(0.02)))
+                                     kernel_regularizer=keras.regularizers.l2(0.00002)))
 
     # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
     #     # during each training epoch.  Doing this prevents a small set of nodes doing all the
@@ -115,7 +115,7 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
     # Add a fully connected dense layer.  This layer adds a lot of nodes to the model to allow
     # for different features in the article to activate different groups of nodes.
     theModel.add(keras.layers.Dense(units=_cnnDense, activation=_denseActivation,
-                                    kernel_regularizer=keras.regularizers.l2(0.2)))
+                                    kernel_regularizer=keras.regularizers.l2(0.00002)))
 
     # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
     # during each training epoch.  Doing this prevents a small set of nodes doing all the
@@ -235,8 +235,8 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             # Load the training set data from the database
             _command = "SELECT cn.id, ln.bias_final, cn.text, ln.url " + \
                        "FROM train_content cn, train_lean ln " + \
-                       "WHERE (cn.id < 599999) AND " + \
-                       "(cn.`published-at` >= '2014-01-01') AND " + \
+                       "WHERE (cn.id < 999999999) AND " + \
+                       "(cn.`published-at` >= '2009-01-01') AND " + \
                              "(cn.id == ln.id) AND " + \
                              "(ln.url_keep == 1) AND " + \
                              "(cn.id NOT IN (SELECT a.id " + \
@@ -251,7 +251,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             _command = "SELECT cn.id, ln.bias_final, cn.text, ln.url " + \
                        "FROM test_content cn, test_lean ln " + \
                        "WHERE (cn.id < 999999999) AND " + \
-                       "(cn.`published-at` >= '2014-01-01') AND " + \
+                       "(cn.`published-at` >= '2009-01-01') AND " + \
                              "(cn.id == ln.id) AND " + \
                              "(ln.url_keep == 1) AND " + \
                              "(cn.id NOT IN (SELECT a.id " + \
@@ -308,7 +308,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             # be 'abqjournal'.
             print('Excluding specific publishers due to strongly biasing the model')
             _excludePublishers = ['NULL']
-            _excludePublishers = ['apnews', 'foxbusiness']
+#            _excludePublishers = ['apnews', 'foxbusiness']
             _excludeString = '|'.join(_excludePublishers)
             _df = _df[~_df['url'].str.contains(_excludeString)]
 
@@ -334,9 +334,19 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             # specific words that the neural net is probably keying on, etc.
             print('Removing specific words that act as tipping/cueing for the model')
             print('Removing numbers and "words" of length 1')
+            print('Removing common words for which a single publisher contains > 50% of that word')
             _j = 2
             _wordCount = 2
-            _excludeWords = ['reuters', 'advertisement']
+
+            _dfExclude = read_csv('./data/frequentWords_50percentUniquePublisher.csv',
+                                  index_col=False,
+                                  dtype={'word': str,
+                                         'all': int,
+                                         'publisher': str,
+                                         'pwc': int,
+                                         'publisher_percent': float})
+            _excludeWords = [x for x in _dfExclude.word]
+            _excludeWords = _excludeWords + ['reuters', 'advertisement']
             while _wordCount <= min([5 * _vocabSize, len(t.index_word)]):
                 _flag = False
                 _word = t.index_word[_j]
@@ -420,12 +430,15 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             # occurs at the beginning or end of an article, so we are removing the first and
             # last N words from each article.  Of course, this means that we are throwing out
             # any article of length 2N or less.
-            print('Removing first and last 50 words/tokens from each article')
-            _N = 50
-            _articleSequences = [x[_N:-_N] for x in _tempSequences if len(x) > (2*_N)]
+#            print('Removing first and last 50 words/tokens from each article')
+            _N = 0
+#            _articleSequences = [x[_N:-_N] for x in _tempSequences if len(x) > (2*_N)]
+            _articleSequences = [[y for y in x if y > 1] for x in _tempSequences]
 
             # We shouldn't have to truncate the test data since we're not training on it
-            _testarticleSequences = t.texts_to_sequences(_dfx.text.values)
+            _temptestSequences = t.texts_to_sequences(_dfx.text.values)
+            _testarticleSequences = [[y for y in x if y > 1] for x in _temptestSequences]
+
 
             _t8 = time.time()
 
@@ -652,6 +665,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
                     _fval_acc.append(_historyDict['val_categorical_accuracy'])
                     _floss.append(_historyDict['loss'])
                     _fval_loss.append(_historyDict['val_loss'])
+                    keras.backend.clear_session()
 
             j += 1
 

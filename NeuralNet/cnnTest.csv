@@ -1,2 +1,2 @@
 id,dbFile,gloveFile,vocabSize,captureFraction,convolutionFilters,convolutionKernel,convolutionActivation,poolSize,flattenLayer,denseUnits,denseActivation,dropoutFraction,outputActivation,lossFunction
-99999,./data/articles_zenodo.db,./data/glove.6B.50d.txt,1000,0.95,50,15,relu,10,True,50,relu,0.20,softmax,categorical_crossentropy
+99999,./data/articles_zenodo.db,./data/glove.6B.50d.txt,2500,0.95,50,15,relu,10,True,50,relu,0.20,softmax,categorical_crossentropy
