@@ -92,7 +92,7 @@ param_grid_mnb = {'clf-mnb': [MultinomialNB()],
                           "vect__ngram_range": [(0,1),(1,2),(1,3),(1,5),(1,10)],
                           "vect__max_features": [100,500,1000,5000,10000,100000],
                   'tfidf': [TfidfTransformer()],
-                           "tfidf__norm": ['l1','l2','None'],
+                           "tfidf__norm": ['l1','l2',None],
                            "tfidf__sublinear_tf": [True,False]}
  
 

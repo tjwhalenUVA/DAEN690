@@ -12,6 +12,7 @@ import pandas as pd
 from time import time
 from operator import itemgetter
 from sklearn.pipeline import Pipeline
+from sklearn.svm import LinearSVC
 from sklearn.model_selection import GridSearchCV
 from sklearn.linear_model import SGDClassifier
 from sklearn.feature_extraction.text import CountVectorizer
@@ -75,10 +76,10 @@ test_lean = pd.read_sql('select * from test_lean;', _db)
 
 _df1 = _df.groupby('source').apply(lambda x: x.sample(n=100))
 
-_excludePublishers = ['NULL']
-_excludePublishers = ['abqjournal', 'washingtontimes']
-_excludeString = '|'.join(_excludePublishers)
-_df1 = _df1[~_df1['source'].str.contains(_excludeString)]
+#_excludePublishers = ['NULL']
+#_excludePublishers = ['abqjournal', 'washingtontimes']
+#_excludeString = '|'.join(_excludePublishers)
+#_df1 = _df1[~_df1['source'].str.contains(_excludeString)]
 
 #%%
 
@@ -93,29 +94,23 @@ _df1 = _df1[~_df1['source'].str.contains(_excludeString)]
 
 pipe_svm = Pipeline([('vect', CountVectorizer()),
                          ('tfidf', TfidfTransformer()),
-                         ('clf-svm', SGDClassifier()),])
+                         ('clf-svm', LinearSVC()),])
 
 
 # build a classifier
 #clf = SGDClassifier()
 
 # use a full grid over all parameters
-param_grid = {'clf-svm': [SGDClassifier()],
-                            "clf-svm__max_iter": [1, 5, 10, 20],
-                            "clf-svm__alpha": [0.0001, 0.001, 0.01, 0.1, 1, 10, 100],
-                            "clf-svm__penalty": ["none", "l1", "l2"],
-                            "clf-svm__n_jobs": [-1],
-              'vect': [CountVectorizer()],
-                        "vect__ngram_range": [(0,1),(1,2),(1,3),(1,5),(1,10)],
-                        "vect__max_features": [100,500,1000,5000,10000,100000],
+param_grid = {'vect': [CountVectorizer()],
+                        "vect__ngram_range": [(1,5)],
+                        "vect__max_features": [10000],
               'tfidf': [TfidfTransformer()],
-                           "tfidf__norm": ['l1','l2',None],
-                           "tfidf__sublinear_tf": [True,False]}
+                           "tfidf__sublinear_tf": [False]}
  
 # run grid search
 grid_search = GridSearchCV(pipe_svm, param_grid=param_grid, scoring='accuracy')
 start = time()
-grid_search.fit(_df.text, _df.bias_final)
+grid_search.fit(_df1.text, _df1.bias_final)
  
 print("GridSearchCV took %.2f seconds for %d candidate parameter settings."
       % (time() - start, len(grid_search.grid_scores_)))
