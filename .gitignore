@@ -23,3 +23,6 @@ cnnGridSearch_gpu*.txt
 NeuralNet/results/cnnGridSearchResults/raw/*
 #ignore all of the grid search input csv files
 NeuralNet/*gridTest*.csv
+#Ignore csv and xlsx
+frequentWords_50percentUniquePublisher.csv
+Results/cnn_grid_results_raw.xlsx
