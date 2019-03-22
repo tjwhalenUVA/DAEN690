@@ -12,8 +12,8 @@ import pandas as pd
 from time import time
 from operator import itemgetter
 from sklearn.pipeline import Pipeline
-from sklearn.model_selection import GridSearchCV
-from sklearn.linear_model import SGDClassifier
+from sklearn.grid_search import GridSearchCV
+from sklearn.naive_bayes import MultinomialNB
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 
@@ -28,8 +28,8 @@ def report(grid_scores, n_top=3):
               np.std(score.cv_validation_scores)))
         print("Parameters: {0}\n".format(score.parameters))
 
+# %% Set global path variables
 
-#%% Set global path variables
 directory = os.path.dirname(os.path.abspath('__file__'))
 input_file = os.path.join(directory,'Article Collection')
 _dbFile = os.path.join(input_file,'articles_zenodo.db')
@@ -79,69 +79,39 @@ _excludePublishers = ['NULL']
 _excludePublishers = ['abqjournal', 'washingtontimes']
 _excludeString = '|'.join(_excludePublishers)
 _df1 = _df1[~_df1['source'].str.contains(_excludeString)]
-
 #%%
 
-#text_clf_svm = Pipeline([('vect', CountVectorizer()),
-#                         ('tfidf', TfidfTransformer()),
-#                         ('clf-svm', SGDClassifier(loss='hinge', penalty='l2',
-#                                                   alpha=1e-3, n_iter=10, random_state=42)),])
-#text_clf_svm = text_clf_svm.fit(_df.text, _df.bias_final)
-#predicted_svm = text_clf_svm.predict(test_df.text)
-#np.mean(predicted_svm == test_df.bias_final )
-
-
-pipe_svm = Pipeline([('vect', CountVectorizer()),
-                         ('tfidf', TfidfTransformer()),
-                         ('clf-svm', SGDClassifier()),])
-
-
-# build a classifier
-#clf = SGDClassifier()
+pipe_mnb = Pipeline([('vect', CountVectorizer()),
+                     ('tfidf', TfidfTransformer()),
+                     ('clf-mnb', MultinomialNB()),])
 
 # use a full grid over all parameters
-param_grid = {'clf-svm': [SGDClassifier()],
-                            "clf-svm__max_iter": [1, 5, 10, 20],
-                            "clf-svm__alpha": [0.0001, 0.001, 0.01, 0.1, 1, 10, 100],
-                            "clf-svm__penalty": ["none", "l1", "l2"],
-                            "clf-svm__n_jobs": [-1],
-              'vect': [CountVectorizer()],
-                        "vect__ngram_range": [(0,1),(1,2),(1,3),(1,5),(1,10)],
-                        "vect__max_features": [100,500,1000,5000,10000,100000],
-              'tfidf': [TfidfTransformer()],
+param_grid_mnb = {'clf-mnb': [MultinomialNB()],
+                            "clf-mnb__alpha": [.001, 0.25, 0.50, 1],
+                  'vect': [CountVectorizer()],
+                          "vect__ngram_range": [(0,1),(1,2),(1,3),(1,5),(1,10)],
+                          "vect__max_features": [100,500,1000,5000,10000,100000],
+                  'tfidf': [TfidfTransformer()],
                            "tfidf__norm": ['l1','l2',None],
                            "tfidf__sublinear_tf": [True,False]}
  
-# run grid search
-grid_search = GridSearchCV(pipe_svm, param_grid=param_grid, scoring='accuracy')
+
+grid_search_mnb = GridSearchCV(pipe_mnb, param_grid=param_grid_mnb, scoring='accuracy')
 start = time()
-grid_search.fit(_df.text, _df.bias_final)
+grid_search_mnb.fit(_df1.text, _df1.bias_final)
+
  
 print("GridSearchCV took %.2f seconds for %d candidate parameter settings."
-      % (time() - start, len(grid_search.grid_scores_)))
-report(grid_search.grid_scores_)
+      % (time() - start, len(grid_search_mnb.grid_scores_)))
+report(grid_search_mnb.grid_scores_)
 
-#text_clf_svm = Pipeline([('vect', CountVectorizer(stop_words="english", ngram_range=(1, 10), max_features=10000)),
-#                         ('tfidf', TfidfTransformer()),
-#                         ('clf-svm', SGDClassifier(alpha=0.0001, 
-#                           average=False, 
-#                           class_weight=None, 
-#                           epsilon=0.1,
-#                           eta0=0.0,
-#                           fit_intercept=True,
-#                           l1_ratio=0.15,
-#                           learning_rate='optimal',
-#                           loss='hinge',
-#                           max_iter=None,
-#                           n_iter=100,
-#                           n_jobs=1,
-#                           penalty='none',
-#                           power_t=0.5,
-#                           random_state=None,
-#                          shuffle=True,
-#                           tol=None,
-#                           verbose=0,
-#                           warm_start=False)),])
-#text_clf_svm = text_clf_svm.fit(_df1.text, _df1.bias_final)
-#predicted_svm = text_clf_svm.predict(test_df.text)
-#np.mean(predicted_svm == test_df.bias_final )
+
+#text_clf_mnb = Pipeline([('vect', CountVectorizer(stop_words="english", ngram_range=(1, 5), max_features=10000)),
+#                         ('tfidf', TfidfTransformer(sublinear_tf=True, norm='l1')),
+#                         ('clf-mnb', MultinomialNB()),])
+#text_clf_mnb = text_clf_mnb.fit(_df1.text, _df1.bias_final)
+#predicted_mnb = text_clf_mnb.predict(test_df.text)
+#np.mean(predicted_mnb == test_df.bias_final)
+
+#text_clf = text_clf.fit(_df.text, _df.bias_final)
+
