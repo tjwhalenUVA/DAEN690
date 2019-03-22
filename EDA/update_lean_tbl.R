@@ -53,3 +53,14 @@ dbWriteTable(conn = con, name = 'train_lean', value = lean.update,
              row.names=F, overwrite=T)
 
 dbDisconnect(con)
+
+
+lean.update %>%
+    left_join(., content, by='id') %>%
+    mutate(Year = lubridate::year(`published-at`),
+           Year = ifelse(is.na(Year), 2000, Year)) %>%
+    filter(Year >= 2009,
+           url_keep == 1,
+           !(id %in% dup.articles$id.1),
+           pubs_100 == 1) %>%
+    nrow(.)
