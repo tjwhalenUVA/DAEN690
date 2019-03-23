@@ -73,4 +73,4 @@ for p, wc in _pubs_wc.items():
     _tmp_df = pd.DataFrame(data={'word': list(wc.keys()), p: list(wc.values())})
     _df_out = _df_out.join(_tmp_df.set_index('word'), on='word')
 print('writing to database')
-_df_out.to_sql(name='publisher_WC', con=_db, if_exists='replace', index=False)
+_df_out.to_sql(name='train_publisher_WC', con=_db, if_exists='replace', index=False)
