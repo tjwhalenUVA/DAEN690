@@ -12,7 +12,7 @@ import pandas as pd
 from time import time
 from operator import itemgetter
 from sklearn.pipeline import Pipeline
-from sklearn.grid_search import GridSearchCV
+from sklearn.model_selection import GridSearchCV
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
@@ -42,7 +42,7 @@ _db = sqlite3.connect(_dbFile)
 print('Pulling article IDs, leanings, and text from database')
 q1 = """SELECT ln.id, ln.bias_final, cn.text, ln.url, ln.pubs_100, ln.source
         FROM train_lean ln, train_content cn
-        WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id AND ln.url_keep='1' AND ln.pubs_100='1.0'"""
+        WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id AND ln.url_keep='1'"""
 _df = pd.read_sql(q1, _db, columns=('id', 'lean', 'text'))
 _lean = pd.read_sql('select * from train_lean;', _db)
 
@@ -55,6 +55,15 @@ q2 = """SELECT ln.id, ln.bias_final, cn.text, ln.url
         WHERE cn.`published-at` >= '2009-01-01' AND ln.id == cn.id """
 test_df = pd.read_sql(q2, _db, columns=('id', 'lean', 'text'))
 test_lean = pd.read_sql('select * from test_lean;', _db)
+
+#%%
+
+_df['bias_three'] = _df['bias_final'].replace('left-center','left')
+_df['bias_three'] = _df['bias_three'].replace('right-center','right')
+
+test_df['bias_three'] = test_df['bias_final'].replace('left-center','left')
+test_df['bias_three'] = test_df['bias_three'].replace('right-center','right')
+
 
 #%%
 #print('Excluding specific publishers due to strongly biasing the model')
@@ -73,12 +82,17 @@ test_lean = pd.read_sql('select * from test_lean;', _db)
 
 #%%
 
-_df1 = _df.groupby('source').apply(lambda x: x.sample(n=100))
+#_df1 = _df.groupby('source').apply(lambda x: x.sample(n=100))
 
 _excludePublishers = ['NULL']
-_excludePublishers = ['abqjournal', 'washingtontimes']
+_excludePublishers = ['abqjournal', 'foxbusiness', 'apnews', 'motherjones', 'counterpunch', 'newsline', 'pri']
 _excludeString = '|'.join(_excludePublishers)
-_df1 = _df1[~_df1['source'].str.contains(_excludeString)]
+_df = _df[~_df['source'].str.contains(_excludeString)]
+
+_excludePublishersTest = ['NULL']
+_excludePublishersTest = ['themoderatevoice', 'vox', 'grist', 'cfr', 'texastribune']
+_excludeStringTest = '|'.join(_excludePublishersTest)
+test_df = test_df[~test_df['url'].str.contains(_excludeStringTest)]
 #%%
 
 pipe_mnb = Pipeline([('vect', CountVectorizer()),
@@ -106,12 +120,12 @@ print("GridSearchCV took %.2f seconds for %d candidate parameter settings."
 report(grid_search_mnb.grid_scores_)
 
 
-#text_clf_mnb = Pipeline([('vect', CountVectorizer(stop_words="english", ngram_range=(1, 5), max_features=10000)),
-#                         ('tfidf', TfidfTransformer(sublinear_tf=True, norm='l1')),
-#                         ('clf-mnb', MultinomialNB()),])
-#text_clf_mnb = text_clf_mnb.fit(_df1.text, _df1.bias_final)
-#predicted_mnb = text_clf_mnb.predict(test_df.text)
-#np.mean(predicted_mnb == test_df.bias_final)
+text_clf_mnb = Pipeline([('vect', CountVectorizer()),
+                         ('tfidf', TfidfTransformer()),
+                         ('clf-mnb', MultinomialNB()),])
+text_clf_mnb = text_clf_mnb.fit(_df.text, _df.bias_three)
+predicted_mnb = text_clf_mnb.predict(test_df.text)
+np.mean(predicted_mnb == test_df.bias_three)
 
-#text_clf = text_clf.fit(_df.text, _df.bias_final)
+text_clf = text_clf.fit(_df.text, _df.bias_final)
 
