@@ -64,7 +64,6 @@ from collections import Counter
 for p, ws in _pubs_dic.items():
     print(p)
     _pubs_wc[p] = dict(Counter(ws))
-<<<<<<< HEAD
 
 print('create dataframe of WCs')
 _all_words = dict(Counter(_words))
@@ -74,18 +73,4 @@ for p, wc in _pubs_wc.items():
     _tmp_df = pd.DataFrame(data={'word': list(wc.keys()), p: list(wc.values())})
     _df_out = _df_out.join(_tmp_df.set_index('word'), on='word')
 print('writing to database')
-_df_out.to_sql(name='publisher_WC', con=_db, if_exists='replace', index=False)
-=======
-    
-#%%
-
-words = list(_pubs_wc['foxbusiness'].keys())
-counts = [_pubs_wc['foxbusiness'][x] for x in words]
-indices = np.argsort(-np.array(counts))
-
-sorted_list = [(words[i],counts[i]) for i in indices]
-
-for i in indices:
-    print('Word: %s\t Count:%d' % (words[i],counts[i]))
-    
->>>>>>> ec988c630f427b959f085c7c0fce9c5890b13c61
+_df_out.to_sql(name='train_publisher_WC', con=_db, if_exists='replace', index=False)
