@@ -85,11 +85,11 @@ predicted_mnb = text_clf_mnb.predict(X_test)
 np.mean(predicted_mnb == y_test)
 
 from sklearn.metrics import confusion_matrix
-y_true = test_df.bias_final
+y_true = y_test
 y_pred = predicted_mnb
 confusion_matrix(y_true, y_pred)
 
-class_names =['left','right']
+class_names =['left','left-center','least','right-center','right']
 
 def plot_confusion_matrix(y_true, y_pred, classes,
                           normalize=False,
@@ -108,7 +108,7 @@ def plot_confusion_matrix(y_true, y_pred, classes,
     # Compute confusion matrix
     cm = confusion_matrix(y_true, y_pred)
     # Only use the labels that appear in the data
-    classes = ['left', 'right']
+    classes = ['left','left-center','least','right-center', 'right']
     if normalize:
         cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
         print("Normalized confusion matrix")
