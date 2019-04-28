@@ -1,4 +1,4 @@
-#! /Users/dpbrinegar/anaconda3/envs/gitHub/bin/python
+#! /usr/bin/python
 from itertools import product
 import pandas as pd
 import sys

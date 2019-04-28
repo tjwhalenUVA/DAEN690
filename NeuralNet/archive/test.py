@@ -3,24 +3,15 @@
 #
 # Author:  Paul M. Brinegar, II
 #
-# Date Created:  20190301
+# Date Created:  20190402
 #
-# CNNgrid.py - Code for running a CNN (Convolutional Neural Net) with grid search
+# test.py - A complete hail-mary test
 #
 # This code should extract the article ID, leaning, and text from our SQLite database,
 # convert the text for each article into a series of embedded word vectors (padding
 # as necessary), and feed the results into a convolutional neural net.  We will be using
-# the GloVe dataset as our source for word embedding vectors.
-#
-# We use a grid search with various parameters.  Apparently it is possible to wrap
-# our neural net model inside a sklearn grid search wrapper, but attempts to accomplish
-# this resulted in multiple, multiple, multiple tensorflow errors being thrown, to the
-# point where it was simply easier to do a grid search the old-fashioned way.
-#
-# Rather than using sklearn's wrapper, we instead built an input file with all of the
-# hyperparameter combinations we wish to test.  We then loop through the file row by row
-# and store the results from each training/validation run.  We also track the row whose
-# results are the "best" by whatever metric we select, and that's our winner.
+# the GloVe dataset as our source for word embedding vectors.  We intend to make the
+# word embedding vectors trainable for this model.
 #
 # Understanding of word embeddings and example code found at:
 # https://machinelearningmastery.com/use-word-embedding-layers-deep-learning-keras/
@@ -38,7 +29,7 @@ from tensorflow import keras
 # to be called easily inside of a loop
 #
 def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
-                   _cnnFilters=50, _cnnKernel=5, _convActivation='relu',
+                   _cnnFilters=250, _cnnKernel=7, _convActivation='relu',
                    _cnnPool=5,
                    _cnnFlatten=True,
                    _cnnDense=50, _denseActivation='relu',
@@ -59,44 +50,13 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
                                         output_dim=_dimensions,
                                         embeddings_initializer=keras.initializers.Constant(_embeddingMatrix),
                                         input_length=_padLength,
-                                        trainable=False))
-
-    # # Add a 1-dimensional convolution layer.  This layer slides a window of size 5 across the input
-    # # and creates an output of shape
-    # theModel.add(keras.layers.Conv1D(filters=10, kernel_size=5, activation='relu'))
-    #
-    # theModel.add(keras.layers.Dropout(0.20))
-    #
-    # theModel.add(keras.layers.MaxPool1D(pool_size=3))
-    #
-    # theModel.add(keras.layers.Conv1D(filters=50, kernel_size=3, activation='relu'))
-    #
-    # theModel.add(keras.layers.Dropout(0.20))
-    #
-    # theModel.add(keras.layers.MaxPool1D(pool_size=2))
-    #
-    # theModel.add(keras.layers.Conv1D(filters=150, kernel_size=5, activation='relu'))
-    #
-    # theModel.add(keras.layers.Dropout(0.20))
-    #
-    # theModel.add(keras.layers.MaxPool1D(pool_size=2))
-    #
-    # theModel.add(keras.layers.Flatten())
-    #
-    # theModel.add(keras.layers.Dense(units=50, activation='relu'))
-    #
-    # theModel.add(keras.layers.Dropout(0.20))
-    #
-    # theModel.add(keras.layers.Dense(units=5, activation='softmax'))
-
-
+                                        trainable=True))
 
     # Add a 1-dimensional convolution layer.  This layer moves a window of size _cnnKernel across
     # the input and creates an output of length _cnnFilters for each window.
-#    theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel, activation=_convActivation))
     theModel.add(keras.layers.Conv1D(filters=_cnnFilters, kernel_size=_cnnKernel,
-                                     activation=_convActivation,
-                                     kernel_regularizer=keras.regularizers.l2(0.00002)))
+                                     activation=_convActivation))
+    #                                 kernel_regularizer=keras.regularizers.l2(0.00002)))  ... no regularization used
 
     # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
     #     # during each training epoch.  Doing this prevents a small set of nodes doing all the
@@ -104,9 +64,12 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
     if _cnnDropout > 0.0:
         theModel.add(keras.layers.Dropout(_cnnDropout))
 
-    # Add a max pooling layer.  This layer looks at the vectors contained in a window of size _cnnPool
-    # and outputs the vector with the greatest L2 norm.
-    theModel.add(keras.layers.MaxPool1D(pool_size=_cnnPool))
+    # Add a global max pooling layer.  This layer takes the vector resulting from a convolution
+    # filter and selects the maximum value from it.  This essentially selects the most "important"
+    # point of the article as measured by a particular filter.  The result is a single vector of
+    # length _cnnFilters, where each element in the vector corresponds to the maximum value obtained
+    # from each filter in _cnnFilters.
+    theModel.add(keras.layers.GlobalMaxPooling1D())
 
     # Add a flatten layer.  This layer removes reduces the output to a one-dimensional vector
     if _cnnFlatten:
@@ -114,8 +77,8 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
 
     # Add a fully connected dense layer.  This layer adds a lot of nodes to the model to allow
     # for different features in the article to activate different groups of nodes.
-    theModel.add(keras.layers.Dense(units=_cnnDense, activation=_denseActivation,
-                                    kernel_regularizer=keras.regularizers.l2(0.00002)))
+    theModel.add(keras.layers.Dense(units=_cnnDense, activation=_denseActivation))
+    #                                kernel_regularizer=keras.regularizers.l2(0.00002)))  ... no regularization used
 
     # Add a dropout layer.  This layer reduces overfitting by randomly "turning off" nodes
     # during each training epoch.  Doing this prevents a small set of nodes doing all the
@@ -138,9 +101,21 @@ def constructModel(_vocabSize, _embeddingMatrix, _padLength, _dimensions=50,
     # be any of the allowed optimizers (default is 'adam', a form of stochastic
     # gradient descent).
     theModel.compile(optimizer=_optimizer,
-                  loss='categorical_crossentropy',
+                  loss=customLoss,                     #'categorical_crossentropy',
                   metrics=['categorical_accuracy'])
     return theModel
+
+
+def customLoss(y_true, y_pred):
+    import numpy as np
+
+    thresholds = [-1.0e9, 0.5, 1.5, 2.5, 3.5, 1.0e9]
+
+    yt = keras.backend.argmax(y_true, axis=1)
+    yp = keras.backend.argmax(y_pred, axis=1)
+
+    return keras.backend.sum(keras.backend.abs(keras.backend.update_sub(yt, yp)))
+
 
 
 def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
@@ -153,9 +128,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
         os.environ['CUDA_VISIBLE_DEVICES'] = '%s' % _GPUid
 
     import time
-
     import gc
-
     import sqlite3
 
     from pandas import DataFrame
@@ -235,14 +208,14 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             # Load the training set data from the database
             _command = "SELECT cn.id, ln.bias_final, cn.text, ln.url " + \
                        "FROM train_content cn, train_lean ln " + \
-                       "WHERE (cn.id < 999999999) AND " + \
+                       "WHERE (cn.id < 99999) AND " + \
                        "(cn.`published-at` >= '2009-01-01') AND " + \
                              "(cn.id == ln.id) AND " + \
                              "(ln.url_keep == 1) AND " + \
                              "(cn.id NOT IN (SELECT a.id " + \
                                             "FROM train_content a, train_content b " + \
                                             "WHERE (a.id < b.id) AND " + \
-                                                  "(a.text == b.text)));"
+                                                  "(a.title == b.title)));"
 
             _cur.execute(_command)
             _df = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text', 'url'))
@@ -250,14 +223,14 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             # load the test set data from the database
             _command = "SELECT cn.id, ln.bias_final, cn.text, ln.url " + \
                        "FROM test_content cn, test_lean ln " + \
-                       "WHERE (cn.id < 999999999) AND " + \
+                       "WHERE (cn.id < 99999) AND " + \
                        "(cn.`published-at` >= '2009-01-01') AND " + \
                              "(cn.id == ln.id) AND " + \
                              "(ln.url_keep == 1) AND " + \
                              "(cn.id NOT IN (SELECT a.id " + \
                                             "FROM test_content a, test_content b " + \
                                             "WHERE (a.id < b.id) AND " + \
-                                                  "(a.text == b.text)));"
+                                                  "(a.title == b.title)));"
 
             _cur.execute(_command)
             _dfx = DataFrame(_cur.fetchall(), columns=('id', 'lean', 'text', 'url'))
@@ -308,7 +281,7 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
             # be 'abqjournal'.
             print('Excluding specific publishers due to strongly biasing the model')
             _excludePublishers = ['NULL']
-#            _excludePublishers = ['apnews', 'foxbusiness']
+    #        _excludePublishers = ['apnews', 'foxbusiness']
             _excludeString = '|'.join(_excludePublishers)
             _df = _df[~_df['url'].str.contains(_excludeString)]
 
@@ -332,52 +305,52 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
 
             # Remove certain words from the vocabulary... single character "words", numbers,
             # specific words that the neural net is probably keying on, etc.
-            print('Removing specific words that act as tipping/cueing for the model')
-            print('Removing numbers and "words" of length 1')
-            print('Removing common words for which a single publisher contains > 50% of that word')
-            _j = 2
-            _wordCount = 2
-
-            _dfExclude = read_csv('./data/frequentWords_50percentUniquePublisher.csv',
-                                  index_col=False,
-                                  dtype={'word': str,
-                                         'all': int,
-                                         'publisher': str,
-                                         'pwc': int,
-                                         'publisher_percent': float})
-            _excludeWords = [x for x in _dfExclude.word]
-            _excludeWords = _excludeWords + ['reuters', 'advertisement']
-            while _wordCount <= min([5 * _vocabSize, len(t.index_word)]):
-                _flag = False
-                _word = t.index_word[_j]
-
-                # "words" of length 1 get removed from the vocabulary
-                if len(_word) == 1:
-                    print('%s - Removing %s:  Word is only one character in length' % (_j,_word))
-                    _flag = True
-
-                # numbers get removed from the vocabulary
-                junk = None
-                try:
-                    junk = int(_word)
-                except ValueError:
-                    pass
-                if junk is not None:
-                    print('%s - Removing %s:  Word is a number' % (_j,_word))
-                    _flag = True
-
-                # words that are tips/cues to the neural net
-                if _word in _excludeWords:
-                    print('%s - Removing %s:  Word is in the tip/cue list' % (_j,_word))
-                    _flag = True
-
-                if _flag:
-                    del t.word_index[_word]
-                else:
-                    t.index_word[_wordCount] = _word
-                    t.word_index[_word] = _wordCount
-                    _wordCount += 1
-                _j += 1
+#            print('Removing specific words that act as tipping/cueing for the model')
+#            print('Removing numbers and "words" of length 1')
+#            print('Removing common words for which a single publisher contains > 50% of that word')
+#            _j = 2
+#            _wordCount = 2
+#
+#            _dfExclude = read_csv('./data/frequentWords_50percentUniquePublisher.csv',
+#                                  index_col=False,
+#                                  dtype={'word': str,
+#                                         'all': int,
+#                                         'publisher': str,
+#                                         'pwc': int,
+#                                         'publisher_percent': float})
+#            _excludeWords = [x for x in _dfExclude.word]
+#            _excludeWords = _excludeWords + ['reuters', 'advertisement']
+#            while _wordCount <= min([5 * _vocabSize, len(t.index_word)]):
+#                _flag = False
+#                _word = t.index_word[_j]
+#
+#                # "words" of length 1 get removed from the vocabulary
+#                if len(_word) == 1:
+#                    print('%s - Removing %s:  Word is only one character in length' % (_j,_word))
+#                    _flag = True
+#
+#                # numbers get removed from the vocabulary
+#                junk = None
+#                try:
+#                    junk = int(_word)
+#                except ValueError:
+#                    pass
+#                if junk is not None:
+#                    print('%s - Removing %s:  Word is a number' % (_j,_word))
+#                    _flag = True
+#
+#                # words that are tips/cues to the neural net
+#                if _word in _excludeWords:
+#                    print('%s - Removing %s:  Word is in the tip/cue list' % (_j,_word))
+#                    _flag = True
+#
+#                if _flag:
+#                    del t.word_index[_word]
+#                else:
+#                    t.index_word[_wordCount] = _word
+#                    t.word_index[_word] = _wordCount
+#                    _wordCount += 1
+#                _j += 1
 
             # The tokenizer in keras fails to create its {word:index} dictionary properly.  Words
             # with indices larger than the vocabulary size are retained, so we must rebuild the
@@ -401,28 +374,28 @@ def main(_gridFile, _numFolds, _epochs, _verbose, _correlate, _runtest, _GPUid):
 
             # Remove certain phrases that we think might be tipping/cueing for the neural net.
             print('Excluding certain phrases which may be tipping/cueing the model')
-            _excludePhrases = ['the thomson reuters trust principles',
-                               'our standards',
-                               'continue reading below']
-            _excludeSequences = t.texts_to_sequences(_excludePhrases)
-            _phraseID = 0
-            for _seq in _excludeSequences:
-                _seqLen = len(_seq)
-                _nullSeq = [1] * _seqLen
-                _j = 0
-                _repCount = 0
-                _seqCount = 0
-                for _tempseq in _tempSequences:
-                    _seqPos = [(x, x + _seqLen) for x in range(len(_tempseq)) if _tempseq[x:x + _seqLen] == _seq]
-                    if _seqPos:
-                        for _pos in _seqPos:
-                            _tempSequences[_j][_pos[0]:_pos[1]] = _nullSeq
-                            _repCount += 1
-                        _seqCount += 1
-                    _j += 1
-                print('    Removed %d instances of "%s" from %d articles' % (_repCount, _excludePhrases[_phraseID],
-                                                                             _seqCount))
-                _phraseID += 1
+#            _excludePhrases = ['the thomson reuters trust principles',
+#                               'our standards',
+#                               'continue reading below']
+#            _excludeSequences = t.texts_to_sequences(_excludePhrases)
+#            _phraseID = 0
+#            for _seq in _excludeSequences:
+#                _seqLen = len(_seq)
+#                _nullSeq = [1] * _seqLen
+#                _j = 0
+#                _repCount = 0
+#                _seqCount = 0
+#                for _tempseq in _tempSequences:
+#                    _seqPos = [(x, x + _seqLen) for x in range(len(_tempseq)) if _tempseq[x:x + _seqLen] == _seq]
+#                    if _seqPos:
+#                        for _pos in _seqPos:
+#                            _tempSequences[_j][_pos[0]:_pos[1]] = _nullSeq
+#                            _repCount += 1
+#                        _seqCount += 1
+#                    _j += 1
+#                print('    Removed %d instances of "%s" from %d articles' % (_repCount, _excludePhrases[_phraseID],
+#                                                                             _seqCount))
+#                _phraseID += 1
 
             # It is possible that articles contain publisher information or bylines that are
             # highly correlated with the leaning (since leaning is assigned by-publisher).
